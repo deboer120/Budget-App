@@ -360,10 +360,12 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 function getMondayTabName(){
   const d = new Date();
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  // Days to subtract to get back to most recent Monday
+  // Sun(0)->6, Mon(1)->0, Tue(2)->1, Wed(3)->2, Thu(4)->3, Fri(5)->4, Sat(6)->5
+  const daysBack = day === 0 ? 6 : day - 1;
   const monday = new Date(d);
-  monday.setDate(diff);
+  monday.setDate(d.getDate() - daysBack);
   return (monday.getMonth()+1) + '/' + monday.getDate();
 }
 
