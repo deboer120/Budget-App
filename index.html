@@ -482,6 +482,7 @@ function switchTo(name){
   if(name==='ledger') refreshLedger();
   else if(name==='pockets') refreshSources();
   else if(name==='summary') renderSummary();
+  else if(name==='add') doFullRefresh();
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
