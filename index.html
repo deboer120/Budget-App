@@ -348,8 +348,11 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <div class="panel" id="panel-pockets">
       <div id="sourcesBanner"></div>
       <div class="card" style="padding-bottom:10px;">
-        <div class="section-title">Swipes Budget by Source</div>
-        <p class="muted" style="margin-top:-4px;margin-bottom:12px;font-size:12px;">Source names sync from Money Allocation col B. Edit weekly amounts to update col S in your sheet.</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
+          <button class="btn btn-secondary" id="addSourceBtn" style="width:auto;padding:7px 12px;font-size:13px;">+ Add Source</button>
+        </div>
+        <p class="muted" style="margin-top:0;margin-bottom:12px;font-size:12px;">Source names sync from Money Allocation col B. Edit amounts to update col S.</p>
         <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
           <table class="source-table">
             <thead><tr>
@@ -897,6 +900,39 @@ document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
 });
 
 // ── SOURCES ───────────────────────────────────────────────────────────────────
+document.getElementById('addSourceBtn').addEventListener('click',async()=>{
+  const avail=state.totalSlots-state.filledSlots;
+  if(avail<=0){
+    showToast('No empty slots left in your Sheet. Add more rows in Money Allocation first.','err');
+    return;
+  }
+  const name=prompt('New source name:');
+  if(!name||!name.trim()) return;
+  const trimmed=name.trim();
+  if(state.pockets.some(p=>p.name.toLowerCase()===trimmed.toLowerCase())){
+    showToast('A source with that name already exists','err'); return;
+  }
+  // Find next empty slot row in Money Allocation col B starting from SOURCE_START_ROW
+  const nextRow=SOURCE_START_ROW+state.filledSlots;
+  setSpinner(true);
+  try{
+    // Write name to col B, default amount 0 to col S
+    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow+":S"+nextRow)+'?valueInputOption=USER_ENTERED',{
+      range:"'Money Allocation'!B"+nextRow+":S"+nextRow,
+      values:[[trimmed,'','','','','','','','','','','','','','','','','',0]]
+    });
+    // Refresh sources from sheet to pick up the new row
+    const r=await loadSourcesFromSheet();
+    state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
+    saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+    showToast('Source "'+trimmed+'" added','success');
+  }catch(e){
+    showToast('Could not add source: '+e.message,'err');
+  }finally{
+    setSpinner(false);
+  }
+});
+
 function renderPockets(){
   const spent=getSpentByPocket();
   const body=document.getElementById('sourceBody');
