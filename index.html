@@ -9,53 +9,86 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#f5f3ef;
-  --surface:#ffffff;
-  --surface2:#f0ede8;
-  --ink:#1a1814;
-  --ink2:#6b665e;
-  --ink3:#a09b92;
-  --accent:#2d5a3d;
-  --accent-light:#e8f0eb;
-  --warn:#92400e;
-  --warn-light:#fef3c7;
-  --danger:#991b1b;
-  --danger-light:#fee2e2;
-  --border:#ddd9d2;
+  --bg:#0f1117;
+  --surface:#1a1d27;
+  --surface2:#22263a;
+  --surface3:#2a2f45;
+  --ink:#e8eaf0;
+  --ink2:#9098b8;
+  --ink3:#5a6280;
+  --accent:#4ade80;
+  --accent-dim:#1a3a28;
+  --accent-text:#22c55e;
+  --warn:#fbbf24;
+  --warn-dim:#2d2510;
+  --warn-text:#f59e0b;
+  --danger:#f87171;
+  --danger-dim:#2d1515;
+  --danger-text:#ef4444;
+  --border:#2a2f45;
+  --border2:#363d5a;
   --radius:14px;
   --radius-sm:10px;
   --mono:'DM Mono',monospace;
   --sans:'DM Sans',sans-serif;
   --tab-h:64px;
 }
+@media(prefers-color-scheme:light){
+  :root{
+    --bg:#f0f2f8;
+    --surface:#ffffff;
+    --surface2:#e8ebf5;
+    --surface3:#dde1f0;
+    --ink:#1a1d2e;
+    --ink2:#5a6280;
+    --ink3:#9098b8;
+    --accent:#16a34a;
+    --accent-dim:#dcfce7;
+    --accent-text:#15803d;
+    --warn:#d97706;
+    --warn-dim:#fef3c7;
+    --warn-text:#b45309;
+    --danger:#dc2626;
+    --danger-dim:#fee2e2;
+    --danger-text:#b91c1c;
+    --border:#dde1f0;
+    --border2:#c8cde8;
+  }
+}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;min-height:100vh;}
-
 .app{display:flex;flex-direction:column;min-height:100vh;}
-.content{flex:1;padding:16px 16px calc(var(--tab-h) + 20px);max-width:600px;margin:0 auto;width:100%;}
+.content{flex:1;padding:12px 14px calc(var(--tab-h) + 16px);max-width:600px;margin:0 auto;width:100%;}
 
-.header{padding:20px 16px 0;max-width:600px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;}
-.header-left h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-0.5px;}
-.header-left small{color:var(--ink2);font-size:13px;}
-.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+/* Header */
+.header{padding:16px 14px 0;max-width:600px;margin:0 auto;width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.header-left h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-0.5px;}
+.header-left small{color:var(--ink2);font-size:12px;}
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 
-/* Auth button */
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:50%;border:1px solid var(--border2);
+  background:var(--surface);cursor:pointer;color:var(--ink2);transition:all 0.15s;
+}
+.icon-btn:active{transform:scale(0.93);}
+.icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.icon-btn.spinning svg{animation:spin 0.7s linear infinite;}
+
 .auth-btn{
   display:inline-flex;align-items:center;gap:6px;
-  border:1.5px solid var(--border);border-radius:20px;
-  padding:7px 14px;font-size:13px;font-weight:700;font-family:var(--sans);
-  cursor:pointer;background:var(--surface);color:var(--ink);
-  transition:all 0.15s;
+  border:1px solid var(--border2);border-radius:20px;
+  padding:7px 12px;font-size:12px;font-weight:700;font-family:var(--sans);
+  cursor:pointer;background:var(--surface);color:var(--ink2);transition:all 0.15s;
 }
 .auth-btn:active{transform:scale(0.97);}
-.auth-btn.signed-in{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
-.auth-btn svg{width:16px;height:16px;flex-shrink:0;}
+.auth-btn.signed-in{background:var(--accent-dim);border-color:var(--accent-text);color:var(--accent-text);}
+.auth-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;}
 
-/* Tab indicator */
-.tab-label{
-  font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.5px;
-  background:var(--surface2);border-radius:20px;padding:4px 10px;
-}
-.tab-label.active-tab{background:var(--accent-light);color:var(--accent);}
+.week-chip{font-size:11px;font-weight:700;color:var(--ink3);background:var(--surface2);border-radius:20px;padding:4px 10px;white-space:nowrap;}
+.week-chip.live{background:var(--accent-dim);color:var(--accent-text);}
+
+/* One Tap container */
+#g_id_onload{position:fixed;top:70px;right:12px;z-index:500;}
 
 /* Bottom nav */
 .bottom-nav{
@@ -71,123 +104,128 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
   padding:8px 4px;transition:color 0.15s;
 }
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-.nav-btn.active{color:var(--accent);}
+.nav-btn.active{color:var(--accent-text);}
 
 /* Panels */
 .panel{display:none;}
 .panel.active{display:block;}
 
 /* Cards */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
 
-/* Big balance card */
-.balance-card{background:var(--ink);color:#fff;border-radius:var(--radius);padding:22px;margin-bottom:14px;}
-.balance-card .label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:0.55;font-weight:500;}
-.balance-card .amount{font-size:44px;font-weight:700;font-family:var(--mono);letter-spacing:-2px;margin:6px 0 4px;}
-.balance-card .meta{font-size:13px;opacity:0.55;}
+/* Balance card */
+.balance-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;margin-bottom:12px;}
+.balance-card .label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink3);font-weight:700;}
+.balance-card .amount{font-size:42px;font-weight:700;font-family:var(--mono);letter-spacing:-2px;margin:6px 0 4px;color:var(--ink);}
+.balance-card .amount.over{color:var(--danger-text);}
+.balance-card .meta{font-size:13px;color:var(--ink2);}
 
 /* Pocket rows */
-.pocket-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);}
+.pocket-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
 .pocket-row:last-child{border-bottom:none;}
-.pocket-row .name{font-weight:500;flex:1;}
-.pocket-row .sub{font-size:12px;color:var(--ink2);}
+.pocket-row .name{font-weight:500;flex:1;font-size:15px;}
+.pocket-row .sub{font-size:12px;color:var(--ink2);margin-top:2px;}
 .pocket-row .badge{font-family:var(--mono);font-size:13px;font-weight:500;padding:5px 10px;border-radius:20px;white-space:nowrap;}
-.badge-good{background:var(--accent-light);color:var(--accent);}
-.badge-warn{background:var(--warn-light);color:var(--warn);}
-.badge-bad{background:var(--danger-light);color:var(--danger);}
+.badge-good{background:var(--accent-dim);color:var(--accent-text);}
+.badge-warn{background:var(--warn-dim);color:var(--warn-text);}
+.badge-bad{background:var(--danger-dim);color:var(--danger-text);}
 
 /* Form */
-.field{margin-bottom:16px;}
-.field label{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:6px;letter-spacing:0.3px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:5px;letter-spacing:0.4px;text-transform:uppercase;}
 .field input,.field select{
-  width:100%;padding:14px 16px;border:1.5px solid var(--border);
+  width:100%;padding:13px 14px;border:1px solid var(--border2);
   border-radius:var(--radius-sm);font-size:16px;font-family:var(--sans);
-  background:var(--surface);color:var(--ink);appearance:none;
-  transition:border-color 0.15s;
+  background:var(--surface2);color:var(--ink);appearance:none;transition:border-color 0.15s;
 }
-.field input:focus,.field select:focus{outline:none;border-color:var(--accent);}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent-text);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 
 /* Buttons */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  border:none;border-radius:var(--radius-sm);padding:14px 20px;
+  border:none;border-radius:var(--radius-sm);padding:13px 18px;
   font-size:15px;font-family:var(--sans);font-weight:700;cursor:pointer;
   transition:opacity 0.15s,transform 0.1s;width:100%;
 }
 .btn:active{transform:scale(0.98);}
-.btn-primary{background:var(--ink);color:#fff;}
-.btn-primary:disabled{opacity:0.4;cursor:not-allowed;}
-.btn-secondary{background:var(--surface2);color:var(--ink);}
-.btn-danger{background:var(--danger-light);color:var(--danger);}
-.btn-row{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
+.btn-primary{background:var(--accent-text);color:#fff;}
+.btn-primary:disabled{opacity:0.35;cursor:not-allowed;}
+.btn-secondary{background:var(--surface2);color:var(--ink);border:1px solid var(--border2);}
+.btn-row{display:flex;flex-direction:row;gap:8px;margin-top:14px;flex-wrap:wrap;}
 
 /* Ledger */
-.ledger-scroll{overflow-x:auto;margin-top:12px;border-radius:var(--radius-sm);border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;font-size:14px;min-width:480px;}
-th{background:var(--surface2);padding:10px 12px;text-align:left;font-size:12px;font-weight:700;color:var(--ink2);letter-spacing:0.5px;border-bottom:1px solid var(--border);}
-td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.ledger-scroll{overflow-x:auto;margin-top:10px;border-radius:var(--radius-sm);border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:460px;}
+th{background:var(--surface2);padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.5px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
-td input,td select{border:none;background:transparent;font-size:14px;font-family:var(--sans);color:var(--ink);width:100%;padding:4px;border-radius:6px;}
-td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--accent-light);}
-.del-btn{background:none;border:none;color:var(--ink3);cursor:pointer;padding:4px 8px;border-radius:6px;font-size:18px;line-height:1;}
-.del-btn:hover{color:var(--danger);background:var(--danger-light);}
+td input,td select{border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:4px;border-radius:5px;}
+td input:focus,td select:focus{outline:1px solid var(--accent-text);background:var(--surface2);}
+.del-btn{background:none;border:none;color:var(--ink3);cursor:pointer;padding:3px 7px;border-radius:5px;font-size:16px;line-height:1;}
+.del-btn:hover{color:var(--danger-text);background:var(--danger-dim);}
 
-/* Pocket editor */
-.pocket-edit-row{display:grid;grid-template-columns:1fr 90px 70px 70px 36px;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
-.pocket-edit-row:last-child{border-bottom:none;}
-.pocket-edit-row input{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface);color:var(--ink);}
-.pocket-edit-row .stat{font-size:13px;color:var(--ink2);font-family:var(--mono);text-align:right;}
-.pocket-hdr{display:grid;grid-template-columns:1fr 90px 70px 70px 36px;gap:8px;padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
-.pocket-hdr span{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.5px;text-align:right;}
-.pocket-hdr span:first-child{text-align:left;}
+/* Sources table */
+.source-table{width:100%;border-collapse:collapse;margin-top:4px;}
+.source-table th{background:var(--surface2);padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.5px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+.source-table td{padding:11px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle;}
+.source-table tr:last-child td{border-bottom:none;}
+.source-table input[type=number]{
+  border:1px solid var(--border2);background:var(--surface2);color:var(--ink);
+  font-size:14px;font-family:var(--mono);padding:6px 10px;
+  border-radius:8px;width:90px;text-align:right;
+}
+.source-table input[type=number]:focus{outline:none;border-color:var(--accent-text);}
+.source-name-cell{font-weight:500;color:var(--ink);}
+.source-stat{font-family:var(--mono);font-size:13px;color:var(--ink2);text-align:right;}
+.slot-info{font-size:12px;color:var(--ink3);margin-top:10px;text-align:right;}
 
 /* Status banner */
 .status-banner{
-  display:flex;align-items:center;gap:10px;
-  padding:12px 16px;border-radius:var(--radius-sm);
-  font-size:14px;font-weight:500;margin-bottom:14px;
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 14px;border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;margin-bottom:12px;line-height:1.5;
 }
-.status-banner.info{background:var(--accent-light);color:var(--accent);}
-.status-banner.warn{background:var(--warn-light);color:var(--warn);}
-.status-banner.error{background:var(--danger-light);color:var(--danger);}
-.status-banner svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;}
+.status-banner.info{background:var(--accent-dim);color:var(--accent-text);}
+.status-banner.warn{background:var(--warn-dim);color:var(--warn-text);}
+.status-banner.error{background:var(--danger-dim);color:var(--danger-text);}
+.status-banner svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;margin-top:1px;}
 
 /* Sign-in screen */
 .signin-screen{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:60vh;text-align:center;padding:32px 16px;
+  min-height:65vh;text-align:center;padding:32px 16px;
 }
-.signin-screen h2{font-size:22px;font-weight:700;margin:0 0 8px;}
-.signin-screen p{color:var(--ink2);margin:0 0 28px;font-size:15px;line-height:1.6;}
+.signin-screen h2{font-size:22px;font-weight:700;margin:0 0 10px;}
+.signin-screen p{color:var(--ink2);margin:0 0 28px;font-size:15px;line-height:1.6;max-width:320px;}
 .signin-screen .big-btn{
   display:inline-flex;align-items:center;gap:10px;
-  background:var(--ink);color:#fff;border:none;border-radius:var(--radius);
-  padding:16px 28px;font-size:16px;font-weight:700;font-family:var(--sans);
+  background:var(--accent-text);color:#fff;border:none;border-radius:var(--radius);
+  padding:15px 28px;font-size:16px;font-weight:700;font-family:var(--sans);
   cursor:pointer;transition:transform 0.15s;
 }
 .signin-screen .big-btn:active{transform:scale(0.97);}
+.signin-screen .hint{font-size:12px;color:var(--ink3);margin-top:16px;}
 
 /* Spinner */
-.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;}
-.spinner.dark{border-color:rgba(0,0,0,0.15);border-top-color:var(--ink);}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;flex-shrink:0;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* Toast */
 .toast{
-  position:fixed;bottom:calc(var(--tab-h) + 12px);left:50%;
-  transform:translateX(-50%) translateY(20px);
-  background:var(--ink);color:#fff;padding:10px 20px;border-radius:30px;
-  font-size:14px;font-weight:500;opacity:0;transition:all 0.25s;
-  pointer-events:none;white-space:nowrap;z-index:200;
+  position:fixed;bottom:calc(var(--tab-h) + 10px);left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--surface3);color:var(--ink);padding:9px 18px;border-radius:30px;
+  font-size:13px;font-weight:500;border:1px solid var(--border2);
+  opacity:0;transition:all 0.2s;pointer-events:none;white-space:nowrap;z-index:200;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.toast.success{background:var(--accent);}
-.toast.error-toast{background:var(--danger);}
+.toast.success{background:var(--accent-dim);color:var(--accent-text);border-color:var(--accent-text);}
+.toast.err{background:var(--danger-dim);color:var(--danger-text);border-color:var(--danger-text);}
 
-.muted{color:var(--ink2);font-size:14px;}
-.section-title{font-size:13px;font-weight:700;color:var(--ink2);letter-spacing:0.5px;text-transform:uppercase;margin:0 0 12px;}
-.empty{text-align:center;padding:32px;color:var(--ink3);font-size:14px;}
+.section-title{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.8px;text-transform:uppercase;margin:0 0 12px;}
+.empty{text-align:center;padding:28px;color:var(--ink3);font-size:14px;}
+.muted{color:var(--ink2);font-size:13px;}
 </style>
 </head>
 <body>
@@ -199,30 +237,48 @@ td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--
       <small id="headerDate"></small>
     </div>
     <div class="header-right">
+      <div class="week-chip" id="weekChip">—</div>
+      <button class="icon-btn" id="refreshBtn" title="Refresh from Sheet">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
       <button class="auth-btn" id="authBtn" onclick="handleAuth()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span id="authBtnLabel">Sign in</span>
       </button>
-      <div class="tab-label" id="tabLabel">No tab</div>
     </div>
+  </div>
+
+  <!-- Google One Tap anchor -->
+  <div id="g_id_onload"
+    data-client_id="692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com"
+    data-callback="onOneTapCredential"
+    data-auto_prompt="true"
+    data-cancel_on_tap_outside="false"
+    data-context="signin"
+    data-itp_support="true">
   </div>
 
   <div class="content">
 
-    <!-- SIGN IN SCREEN -->
+    <!-- SIGN IN -->
     <div id="signinScreen" class="signin-screen">
-      <h2>Connect to Google Sheets</h2>
-      <p>Sign in with the Google account that has access to your budget spreadsheet. Your data stays private.</p>
+      <h2>Budget App</h2>
+      <p>Sign in with Google to sync with your budget spreadsheet.</p>
       <button class="big-btn" onclick="handleAuth()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.545 6.558a9.42 9.42 0 010 6.884M9.545 6.558a9.42 9.42 0 000 6.884"/><path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9z"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
         Sign in with Google
       </button>
+      <div class="hint">One Tap sign-in will appear automatically if you've signed in before.</div>
     </div>
 
-    <!-- ADD EXPENSE -->
+    <!-- ADD -->
     <div class="panel" id="panel-add">
-      <div id="sheetStatusBanner"></div>
+      <div id="addBanner"></div>
       <div class="card">
+        <div class="field">
+          <label>Week</label>
+          <select id="weekSelect"></select>
+        </div>
         <div class="field">
           <label>What did you pay for?</label>
           <input id="item" type="text" placeholder="Lunch, groceries, gas…" autocomplete="off"/>
@@ -242,23 +298,26 @@ td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--
           </div>
         </div>
         <div class="field" id="sourceFieldWrap">
-          <label>Source <span style="font-weight:400;color:var(--ink3);">(optional)</span></label>
+          <label>Source <span style="font-weight:400;color:var(--ink3);text-transform:none;">(optional)</span></label>
           <select id="pocket">
             <option value="">— unassigned —</option>
           </select>
         </div>
-        <button class="btn btn-primary" id="saveBtn">Save Expense</button>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+          <button class="btn btn-primary" id="saveBtnReview">Save &amp; Review</button>
+          <button class="btn btn-secondary" id="saveBtnAnother">Save &amp; Add Another</button>
+        </div>
       </div>
     </div>
 
-    <!-- SWIPES SUMMARY -->
+    <!-- SUMMARY -->
     <div class="panel" id="panel-summary">
       <div class="balance-card">
         <div class="label">Total left in Swipes</div>
         <div class="amount" id="bigTotal">$0.00</div>
         <div class="meta" id="bigMeta">Budgeted $0 · Spent $0</div>
       </div>
-      <div class="card" style="padding:18px 18px 4px;">
+      <div class="card" style="padding:16px 16px 4px;">
         <div class="section-title">By Source</div>
         <div id="summaryRows"></div>
       </div>
@@ -266,12 +325,12 @@ td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--
 
     <!-- LEDGER -->
     <div class="panel" id="panel-ledger">
-      <div class="card" style="padding-bottom:12px;">
+      <div id="ledgerBanner"></div>
+      <div class="card" style="padding-bottom:10px;">
         <div class="section-title">Weekly Ledger</div>
-        <div class="btn-row" style="flex-direction:row;margin-top:0;margin-bottom:12px;">
-          <button class="btn btn-secondary" id="addRowBtn" style="font-size:13px;padding:10px;">+ Add Row</button>
-          <button class="btn btn-secondary" id="copyLedgerBtn" style="font-size:13px;padding:10px;">Copy for Excel</button>
-          <button class="btn btn-danger" id="clearWeekBtn" style="font-size:13px;padding:10px;">New Week</button>
+        <div class="btn-row" style="margin-top:0;margin-bottom:10px;">
+          <button class="btn btn-secondary" id="addRowBtn" style="font-size:13px;padding:9px 12px;">+ Add Row</button>
+          <button class="btn btn-secondary" id="copyLedgerBtn" style="font-size:13px;padding:9px 12px;">Copy for Excel</button>
         </div>
         <div class="ledger-scroll">
           <table>
@@ -281,30 +340,33 @@ td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--
             <tbody id="ledgerBody"></tbody>
           </table>
         </div>
-        <p class="muted" style="margin-top:10px;font-size:12px;">Entries also save to your Google Sheet automatically.</p>
+        <p class="muted" style="margin-top:8px;font-size:12px;">Synced with your Google Sheet.</p>
       </div>
     </div>
 
-    <!-- POCKETS -->
+    <!-- SOURCES -->
     <div class="panel" id="panel-pockets">
-      <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div class="section-title" style="margin:0;">Source Budgets</div>
-          <button class="btn btn-secondary" id="addPocketBtn" style="width:auto;padding:8px 14px;font-size:13px;">+ Add</button>
+      <div id="sourcesBanner"></div>
+      <div class="card" style="padding-bottom:10px;">
+        <div class="section-title">Swipes Budget by Source</div>
+        <p class="muted" style="margin-top:-4px;margin-bottom:12px;font-size:12px;">Source names sync from Money Allocation col B. Edit weekly amounts to update col S in your sheet.</p>
+        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table class="source-table">
+            <thead><tr>
+              <th>Source</th>
+              <th style="text-align:right;">Weekly ($)</th>
+              <th style="text-align:right;">Spent</th>
+              <th style="text-align:right;">Left</th>
+            </tr></thead>
+            <tbody id="sourceBody"></tbody>
+          </table>
         </div>
-        <div class="pocket-hdr">
-          <span>Source</span><span>Budget</span><span>Spent</span><span>Left</span><span></span>
-        </div>
-        <div id="pocketEditorRows"></div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn btn-secondary" id="copyPocketsBtn" style="font-size:13px;padding:10px;">Copy for Excel</button>
-        </div>
+        <div class="slot-info" id="slotInfo"></div>
       </div>
     </div>
 
   </div>
 
-  <!-- Bottom Nav -->
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -323,213 +385,371 @@ td input:focus,td select:focus{outline:1px solid var(--accent);background:var(--
       Sources
     </button>
   </nav>
-
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const CLIENT_ID   = '692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com';
-const SHEET_ID    = '1DIARGC8hijfimrmYtPlqJlHbjxhjY98WlHpbg9pohXQ';
-const SCOPES      = 'https://www.googleapis.com/auth/spreadsheets';
-const STORAGE_KEY = 'budget_v3';
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const CLIENT_ID     = '692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com';
+const SHEET_ID      = '1DIARGC8hijfimrmYtPlqJlHbjxhjY98WlHpbg9pohXQ';
+const SCOPES        = 'https://www.googleapis.com/auth/spreadsheets';
+const STORE         = 'budget_v4';
+const TOKEN_KEY     = 'budget_token';
+const TEMPLATE_TAB  = 'Week Template';
+// Swipes sources start at row 6 in Money Allocation
+// App dynamically scans until it finds a SUM formula row or hits MAX_SOURCE_ROW
+const SOURCE_START_ROW = 6;
+const MAX_SOURCE_ROW   = 40; // safety cap — scan won't go beyond this
 
-// ── STATE ────────────────────────────────────────────────────────────────────
-const defaultPockets = [
-  {id:'p1',name:'Owen',amount:25},
-  {id:'p2',name:'Maria',amount:50},
-  {id:'p3',name:'Grocery',amount:100},
-  {id:'p4',name:'Gas',amount:110},
-  {id:'p5',name:'Fun',amount:100},
-  {id:'p6',name:'Home',amount:30},
-  {id:'p7',name:'Date',amount:35},
-];
-
-let state = {entries:[], pockets:[...defaultPockets]};
-let accessToken = null;
-let tokenClient = null;
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = { entries:[], pockets:[], totalSlots:0, filledSlots:0 };
+let accessToken  = null;
+let tokenClient  = null;
 let currentTabName = '';
-let sheetLoaded = false;
+let sheetLoaded  = false;
+let silentRefreshTimer = null;
 
-// ── HELPERS ──────────────────────────────────────────────────────────────────
-function money(n){return Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'});}
-function num(v){const p=parseFloat(String(v||'').replace(/[^0-9.\-]/g,''));return isFinite(p)?p:0;}
-function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-function getMondayTabName(){
-  const d = new Date();
-  const day = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  // Days to subtract to get back to most recent Monday
-  // Sun(0)->6, Mon(1)->0, Tue(2)->1, Wed(3)->2, Thu(4)->3, Fri(5)->4, Sat(6)->5
-  const daysBack = day === 0 ? 6 : day - 1;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - daysBack);
-  return (monday.getMonth()+1) + '/' + monday.getDate();
-}
-
-function todayStr(){
-  const d = new Date();
-  return (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
-}
-
+// ── PERSIST ───────────────────────────────────────────────────────────────────
 function loadLocal(){
-  try{const r=localStorage.getItem(STORAGE_KEY);if(r)state=JSON.parse(r);}catch(e){}
+  try{ const r=localStorage.getItem(STORE); if(r) state=JSON.parse(r); }catch(e){}
 }
-function saveLocal(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+function saveLocal(){ localStorage.setItem(STORE,JSON.stringify(state)); }
+function saveToken(t,expiresIn){
+  const exp = Date.now()+(expiresIn||3600)*1000;
+  localStorage.setItem(TOKEN_KEY,JSON.stringify({token:t,exp}));
+}
+function loadToken(){
+  try{
+    const raw=localStorage.getItem(TOKEN_KEY);
+    if(!raw) return null;
+    const {token,exp}=JSON.parse(raw);
+    if(Date.now()>exp-60000) return null; // expired or <1min left
+    return token;
+  }catch(e){ return null; }
+}
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function money(n){ return Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'}); }
+function num(v){ const p=parseFloat(String(v||'').replace(/[^0-9.\-]/g,'')); return isFinite(p)?p:0; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function getMondayOf(date){
+  const d=new Date(date);
+  const day=d.getDay();
+  d.setDate(d.getDate()-(day===0?6:day-1));
+  d.setHours(0,0,0,0);
+  return d;
+}
+function tabName(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+function currentTabNameFn(){ return tabName(getMondayOf(new Date())); }
+function todayStr(){ const d=new Date(); return (d.getMonth()+1)+'/'+(d.getDate())+'/'+(d.getFullYear()); }
+
+function buildWeekOptions(){
+  const sel=document.getElementById('weekSelect');
+  sel.innerHTML='';
+  const monday=getMondayOf(new Date());
+  for(let i=0;i<3;i++){
+    const d=new Date(monday);
+    d.setDate(d.getDate()-i*7);
+    const name=tabName(d);
+    const opt=document.createElement('option');
+    opt.value=name;
+    opt.textContent=i===0?name+' (this week)':name;
+    sel.appendChild(opt);
+  }
+  sel.value=currentTabNameFn();
 }
 
-// ── HEADER / DATE ─────────────────────────────────────────────────────────────
-const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const now=new Date();
-document.getElementById('headerDate').textContent=`${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+// ── HEADER DATE ───────────────────────────────────────────────────────────────
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const _now=new Date();
+document.getElementById('headerDate').textContent=MONTHS[_now.getMonth()]+' '+_now.getDate()+', '+_now.getFullYear();
 
-// ── NAV ──────────────────────────────────────────────────────────────────────
+// ── NAV ───────────────────────────────────────────────────────────────────────
 const panels=document.querySelectorAll('.panel');
 const navBtns=document.querySelectorAll('.nav-btn');
 
 function switchTo(name){
   panels.forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
   navBtns.forEach(b=>b.classList.toggle('active',b.dataset.panel===name));
-  if(name==='summary') renderSummary();
-  if(name==='ledger') renderLedger();
-  if(name==='pockets') renderPockets();
+  if(name==='ledger') refreshLedger();
+  else if(name==='pockets') refreshSources();
+  else if(name==='summary') renderSummary();
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
-// ── AUTH ─────────────────────────────────────────────────────────────────────
+// ── AUTH ──────────────────────────────────────────────────────────────────────
 function handleAuth(){
   if(accessToken){
-    if(confirm('Sign out of Google?')){
-      accessToken=null;
-      updateAuthUI(false);
-    }
+    if(confirm('Sign out?')){ signOut(); }
     return;
   }
   tokenClient.requestAccessToken({prompt:'consent'});
 }
 
+function signOut(){
+  accessToken=null; clearToken();
+  if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
+  updateAuthUI(false);
+}
+
+function onTokenReceived(token, expiresIn){
+  accessToken=token;
+  saveToken(token, expiresIn||3600);
+  // Schedule silent refresh at 55 min
+  if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
+  silentRefreshTimer=setTimeout(()=>{
+    tokenClient.requestAccessToken({prompt:''});
+  }, ((expiresIn||3600)-60)*1000);
+  updateAuthUI(true);
+}
+
+// One Tap credential callback — exchange id_token for access token via silent flow
+function onOneTapCredential(response){
+  // One Tap gives us an id_token; we then request an access token silently
+  if(tokenClient){
+    tokenClient.requestAccessToken({prompt:''});
+  }
+}
+
 function updateAuthUI(signedIn){
   const btn=document.getElementById('authBtn');
-  const label=document.getElementById('authBtnLabel');
-  const signin=document.getElementById('signinScreen');
-  const nav=document.getElementById('bottomNav');
-
-  if(signedIn){
-    btn.classList.add('signed-in');
-    label.textContent='Signed in';
-    signin.style.display='none';
-    nav.style.display='grid';
-    switchTo('add');
-    currentTabName=getMondayTabName();
-    updateTabLabel();
-    loadFromSheet();
-  } else {
-    btn.classList.remove('signed-in');
-    label.textContent='Sign in';
-    signin.style.display='flex';
-    nav.style.display='none';
-    panels.forEach(p=>p.classList.remove('active'));
-    sheetLoaded=false;
-  }
+  document.getElementById('authBtnLabel').textContent=signedIn?'Signed in':'Sign in';
+  btn.classList.toggle('signed-in',signedIn);
+  document.getElementById('signinScreen').style.display=signedIn?'none':'flex';
+  document.getElementById('bottomNav').style.display=signedIn?'grid':'none';
+  if(!signedIn){ panels.forEach(p=>p.classList.remove('active')); sheetLoaded=false; return; }
+  currentTabName=currentTabNameFn();
+  updateWeekChip();
+  buildWeekOptions();
+  switchTo('add');
+  doFullRefresh();
 }
 
-function updateTabLabel(){
-  const el=document.getElementById('tabLabel');
-  el.textContent='Week of '+currentTabName;
-  el.classList.add('active-tab');
+function updateWeekChip(){
+  const chip=document.getElementById('weekChip');
+  chip.textContent='Week of '+currentTabName;
+  chip.classList.add('live');
 }
 
-// ── GOOGLE SHEETS API ─────────────────────────────────────────────────────────
-async function sheetsRequest(method, path, body){
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}${path}`;
-  const opts={
-    method,
-    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-  };
+// ── SHEETS API ────────────────────────────────────────────────────────────────
+async function sheetsReq(method,path,body){
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path;
+  const opts={method,headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'}};
   if(body) opts.body=JSON.stringify(body);
   const res=await fetch(url,opts);
-  if(!res.ok){
-    const err=await res.json().catch(()=>({}));
-    throw new Error(err?.error?.message||'Sheets API error '+res.status);
+  if(res.status===401){
+    // Token expired — try silent refresh then retry once
+    accessToken=null; clearToken();
+    return new Promise((resolve,reject)=>{
+      tokenClient.requestAccessToken({prompt:'',callback:(resp)=>{
+        if(resp.error){ signOut(); reject(new Error('Session expired')); return; }
+        onTokenReceived(resp.access_token, resp.expires_in);
+        sheetsReq(method,path,body).then(resolve).catch(reject);
+      }});
+    });
   }
-  return res.json();
+  if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||'Sheets error '+res.status); }
+  return res.status===204?{}:res.json();
 }
 
-async function loadFromSheet(){
-  if(!accessToken) return;
-  showBanner('info','Loading your sheet data…');
-  try{
-    const range=`'${currentTabName}'!A3:E500`;
-    const data=await sheetsRequest('GET',`/values/${encodeURIComponent(range)}`);
-    const rows=data.values||[];
-    state.entries=rows
-      .filter(r=>r && (r[1]||r[4]))
-      .map(r=>({
-        id:uid(),
-        date:r[0]||'',
-        item:r[1]||'',
-        account:r[2]||'',
-        pocket:r[3]||'',
-        cost:num(r[4]),
-      }));
-    saveLocal();
-    sheetLoaded=true;
-    showBanner('info',`Loaded ${state.entries.length} entries from tab "${currentTabName}"`);
-    renderAll();
-    setTimeout(()=>clearBanner(),3000);
-  } catch(e){
-    if(e.message && e.message.includes('Unable to parse range')){
-      showBanner('warn',`Tab "${currentTabName}" not found in your Sheet. Create it by copying last week's tab and naming it ${currentTabName}.`);
+async function getSheetNames(){
+  const data=await sheetsReq('GET','?fields=sheets.properties.title');
+  return (data.sheets||[]).map(s=>s.properties.title);
+}
+
+async function createTabFromTemplate(newName){
+  const data=await sheetsReq('GET','?fields=sheets.properties');
+  const sheets=data.sheets||[];
+  const tmpl=sheets.find(s=>s.properties.title===TEMPLATE_TAB);
+  if(!tmpl) throw new Error('Template tab "'+TEMPLATE_TAB+'" not found in your Sheet.');
+  await sheetsReq('POST',':batchUpdate',{requests:[{duplicateSheet:{
+    sourceSheetId:tmpl.properties.sheetId,
+    insertSheetIndex:sheets.length,
+    newSheetName:newName
+  }}]});
+}
+
+async function loadEntriesFromTab(tab){
+  const range=encodeURIComponent("'"+tab+"'!A3:E500");
+  const data=await sheetsReq('GET','/values/'+range);
+  return (data.values||[])
+    .filter(r=>r&&(r[1]||r[4]))
+    .map(r=>({id:uid(),date:r[0]||'',item:r[1]||'',account:r[2]||'',pocket:r[3]||'',cost:num(r[4])}));
+}
+
+// Dynamically detect source slots in Money Allocation
+// Reads col B (names) and col S (amounts) starting at SOURCE_START_ROW
+// Stops when it hits a row where col S contains a SUM formula string OR col B is empty for 3+ consecutive rows
+// Returns { pockets, totalSlots, filledSlots }
+async function loadSourcesFromSheet(){
+  const endRow=SOURCE_START_ROW+30; // read a generous window
+  const range=encodeURIComponent("'Money Allocation'!B"+SOURCE_START_ROW+":S"+endRow);
+  const data=await sheetsReq('GET','/values/'+range+'?valueRenderOption=UNFORMATTED_VALUE');
+  const rows=data.values||[];
+
+  // Also get formula info to detect the SUM boundary row
+  const fRange=encodeURIComponent("'Money Allocation'!S"+SOURCE_START_ROW+":S"+endRow);
+  const fData=await sheetsReq('GET','/values/'+fRange+'?valueRenderOption=FORMULA');
+  const formulas=(fData.values||[]);
+
+  const pockets=[];
+  let totalSlots=0;
+  let consecutiveEmpty=0;
+
+  for(let i=0;i<rows.length;i++){
+    const absRow=SOURCE_START_ROW+i;
+    const bVal=rows[i]?rows[i][0]:undefined; // col B name
+    const sFormula=formulas[i]?formulas[i][0]:'';
+    const sVal=rows[i]?rows[i][rows[i].length-1]:undefined; // last col = S offset
+
+    // Stop if we hit a SUM formula — this is the boundary row
+    if(typeof sFormula==='string'&&sFormula.toUpperCase().includes('SUM(')) break;
+    // Stop if we've exceeded safety cap
+    if(absRow>MAX_SOURCE_ROW) break;
+
+    totalSlots++;
+    if(bVal&&String(bVal).trim()){
+      consecutiveEmpty=0;
+      // Find S value: it's col S = col B + 17 offset in our slice
+      // rows[i] has B through S, so index 17 = col S
+      const amount=num(rows[i][17]);
+      pockets.push({id:'src'+absRow,row:absRow,name:String(bVal).trim(),amount});
     } else {
-      showBanner('error','Could not load sheet: '+e.message);
+      consecutiveEmpty++;
+      // 3 consecutive empty rows past the filled ones = treat as end of slot area
+      if(consecutiveEmpty>=3&&pockets.length>0) break;
     }
   }
+
+  return {pockets, totalSlots, filledSlots:pockets.length};
 }
 
-async function appendRowToSheet(entry){
-  if(!accessToken) return;
-  const range=`'${currentTabName}'!A:E`;
-  const values=[[
-    entry.date,
-    entry.item,
-    entry.account,
-    entry.pocket||'',
-    entry.cost,
-  ]];
-  await sheetsRequest('POST',`/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
-    range, values,
+async function writeSourceAmount(row,amount){
+  const range=encodeURIComponent("'Money Allocation'!S"+row);
+  await sheetsReq('PUT','/values/'+range+'?valueInputOption=USER_ENTERED',{
+    range:"'Money Allocation'!S"+row, values:[[amount]]
   });
 }
 
-async function rewriteSheetFromState(){
-  if(!accessToken||!sheetLoaded) return;
-  const values=state.entries.map(e=>[
-    e.date, e.item, e.account, e.pocket||'', e.cost
-  ]);
-  // Clear from row 3 down first
-  await sheetsRequest('POST',`/values/${encodeURIComponent(`'${currentTabName}'!A3:E500`)}:clear`,{});
-  if(values.length){
-    await sheetsRequest('PUT',`/values/${encodeURIComponent(`'${currentTabName}'!A3:E`)}?valueInputOption=USER_ENTERED`,{
-      range:`'${currentTabName}'!A3:E`,
-      values,
-    });
+async function writeSourceName(row,name){
+  const range=encodeURIComponent("'Money Allocation'!B"+row);
+  await sheetsReq('PUT','/values/'+range+'?valueInputOption=USER_ENTERED',{
+    range:"'Money Allocation'!B"+row, values:[[name]]
+  });
+}
+
+async function appendEntry(entry,tab){
+  // Find first empty col B row starting at row 3 — write in place, never insert rows
+  const scanRange=encodeURIComponent("'"+tab+"'!B3:B500");
+  const scanData=await sheetsReq('GET','/values/'+scanRange);
+  const vals=scanData.values||[];
+  let targetRow=3;
+  for(let i=0;i<vals.length;i++){
+    if(vals[i]&&vals[i][0]&&String(vals[i][0]).trim()!==''){
+      targetRow=3+i+1;
+    } else {
+      break;
+    }
+  }
+  const putRange=encodeURIComponent("'"+tab+"'!A"+targetRow+":E"+targetRow);
+  await sheetsReq('PUT','/values/'+putRange+'?valueInputOption=USER_ENTERED',{
+    range:"'"+tab+"'!A"+targetRow+":E"+targetRow,
+    values:[[entry.date,entry.item,entry.account,entry.pocket||'',entry.cost]]
+  });
+}
+
+async function rewriteEntries(tab){
+  await sheetsReq('POST','/values/'+encodeURIComponent("'"+tab+"'!A3:E500")+':clear',{});
+  if(!state.entries.length) return;
+  await sheetsReq('PUT','/values/'+encodeURIComponent("'"+tab+"'!A3:E")+'?valueInputOption=USER_ENTERED',{
+    range:"'"+tab+"'!A3:E",
+    values:state.entries.map(e=>[e.date,e.item,e.account,e.pocket||'',e.cost])
+  });
+}
+
+// ── FULL REFRESH ──────────────────────────────────────────────────────────────
+async function doFullRefresh(){
+  if(!accessToken) return;
+  setSpinner(true);
+  try{
+    // Ensure current week tab exists
+    const names=await getSheetNames();
+    if(!names.includes(currentTabName)){
+      showBanner('addBanner','warn','Tab "'+currentTabName+'" not found — creating from template…');
+      try{
+        await createTabFromTemplate(currentTabName);
+        showBanner('addBanner','info','Tab "'+currentTabName+'" created. You\'re ready to log expenses.');
+        setTimeout(()=>clearBanner('addBanner'),4000);
+      }catch(e){
+        showBanner('addBanner','error',e.message+' — please create the tab manually in Google Sheets.');
+      }
+    }
+    // Load entries + sources in parallel
+    const [entries, srcResult]=await Promise.all([
+      loadEntriesFromTab(currentTabName),
+      loadSourcesFromSheet()
+    ]);
+    state.entries=entries;
+    state.pockets=srcResult.pockets;
+    state.totalSlots=srcResult.totalSlots;
+    state.filledSlots=srcResult.filledSlots;
+    saveLocal(); sheetLoaded=true;
+    buildPocketSelect(); renderAll();
+    showToast('Synced ✓','success');
+  }catch(e){
+    showToast('Sync error: '+e.message,'err');
+  }finally{
+    setSpinner(false);
   }
 }
 
-// ── BANNER ────────────────────────────────────────────────────────────────────
-function showBanner(type, msg){
-  const icons={
-    info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>',
-    warn:'<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>',
-    error:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-  };
-  document.getElementById('sheetStatusBanner').innerHTML=`
-    <div class="status-banner ${type}">${icons[type]||''}<span>${msg}</span></div>`;
+async function refreshLedger(){
+  if(!accessToken||!sheetLoaded) return;
+  setSpinner(true);
+  try{
+    state.entries=await loadEntriesFromTab(currentTabName);
+    saveLocal(); renderLedger(); renderSummary();
+  }catch(e){ showToast('Ledger sync error','err'); }
+  finally{ setSpinner(false); }
 }
-function clearBanner(){document.getElementById('sheetStatusBanner').innerHTML='';}
+
+async function refreshSources(){
+  if(!accessToken||!sheetLoaded) return;
+  setSpinner(true);
+  try{
+    const r=await loadSourcesFromSheet();
+    state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
+    saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+  }catch(e){ showToast('Sources sync error','err'); }
+  finally{ setSpinner(false); }
+}
+
+function setSpinner(on){ document.getElementById('refreshBtn').classList.toggle('spinning',on); }
+document.getElementById('refreshBtn').addEventListener('click',()=>doFullRefresh());
+
+// ── WEEK SELECT ───────────────────────────────────────────────────────────────
+document.getElementById('weekSelect').addEventListener('change',async function(){
+  currentTabName=this.value;
+  updateWeekChip();
+  sheetLoaded=false;
+  setSpinner(true);
+  try{
+    const names=await getSheetNames();
+    if(!names.includes(currentTabName)){
+      showBanner('addBanner','warn','Tab "'+currentTabName+'" does not exist in your Sheet yet.');
+      state.entries=[];
+    }else{
+      state.entries=await loadEntriesFromTab(currentTabName);
+      sheetLoaded=true;
+    }
+    saveLocal(); renderAll();
+  }catch(e){ showToast('Could not load week','err'); }
+  finally{ setSpinner(false); }
+});
 
 // ── POCKET SELECT ─────────────────────────────────────────────────────────────
 function buildPocketSelect(){
@@ -538,83 +758,73 @@ function buildPocketSelect(){
   sel.innerHTML='<option value="">— unassigned —</option>';
   state.pockets.forEach(p=>{
     const o=document.createElement('option');
-    o.value=p.name; o.textContent=p.name;
-    sel.appendChild(o);
+    o.value=p.name; o.textContent=p.name; sel.appendChild(o);
   });
   if(state.pockets.some(p=>p.name===cur)) sel.value=cur;
 }
 
 document.getElementById('account').addEventListener('change',function(){
-  document.getElementById('sourceFieldWrap').style.display=
-    this.value==='Swipes'?'block':'none';
+  document.getElementById('sourceFieldWrap').style.display=this.value==='Swipes'?'block':'none';
 });
 
 // ── SAVE EXPENSE ──────────────────────────────────────────────────────────────
-document.getElementById('saveBtn').addEventListener('click', async ()=>{
+async function doSave(goTo){
   const item=document.getElementById('item').value.trim();
   const cost=num(document.getElementById('cost').value);
   const account=document.getElementById('account').value;
   const pocket=account==='Swipes'?document.getElementById('pocket').value:'';
-
-  if(!item){showToast('Enter what you paid for','');return;}
-  if(cost<=0){showToast('Enter a cost greater than 0','');return;}
-
+  const tabName=document.getElementById('weekSelect').value;
+  if(!item){ showToast('Enter what you paid for',''); return; }
+  if(cost<=0){ showToast('Enter a cost greater than 0',''); return; }
   const entry={id:uid(),date:todayStr(),item,account,pocket,cost};
-
-  const btn=document.getElementById('saveBtn');
-  btn.disabled=true;
-  btn.innerHTML='<span class="spinner"></span> Saving…';
-
+  const btnR=document.getElementById('saveBtnReview');
+  const btnA=document.getElementById('saveBtnAnother');
+  btnR.disabled=true; btnA.disabled=true;
+  btnR.innerHTML='<span class="spinner"></span> Saving…';
   try{
     if(accessToken){
-      await appendRowToSheet(entry);
+      if(tabName!==currentTabNameFn()){
+        const names=await getSheetNames();
+        if(!names.includes(tabName)) throw new Error('Tab "'+tabName+'" does not exist in your Sheet.');
+      }
+      await appendEntry(entry,tabName);
     }
-    state.entries.unshift(entry);
-    saveLocal();
+    if(tabName===currentTabName){ state.entries.unshift(entry); saveLocal(); renderAll(); }
     document.getElementById('item').value='';
     document.getElementById('cost').value='';
-    renderAll();
-    showToast('Saved to Google Sheet ✓','success');
-    switchTo('summary');
-  } catch(e){
-    // Still save locally even if sheet write fails
-    state.entries.unshift(entry);
-    saveLocal();
-    renderAll();
-    showToast('Saved locally (sheet error)','');
-    switchTo('summary');
-  } finally{
-    btn.disabled=false;
-    btn.innerHTML='Save Expense';
+    showToast('Saved to Sheet ✓','success');
+    if(goTo==='summary') switchTo('summary');
+  }catch(e){
+    state.entries.unshift(entry); saveLocal(); renderAll();
+    showToast('Saved locally ('+e.message+')','err');
+    if(goTo==='summary') switchTo('summary');
+  }finally{
+    btnR.disabled=false; btnA.disabled=false;
+    btnR.innerHTML='Save &amp; Review';
   }
-});
+}
+document.getElementById('saveBtnReview').addEventListener('click',()=>doSave('summary'));
+document.getElementById('saveBtnAnother').addEventListener('click',()=>doSave('add'));
 
 // ── SUMMARY ───────────────────────────────────────────────────────────────────
 function getSpentByPocket(){
   const m={};
   state.entries.forEach(e=>{
-    if((e.account||'').toLowerCase()==='swipes' && e.pocket){
+    if((e.account||'').toLowerCase()==='swipes'&&e.pocket)
       m[e.pocket]=(m[e.pocket]||0)+num(e.cost);
-    }
   });
   return m;
-}
-
-function getTotalSwipesSpent(){
-  return state.entries
-    .filter(e=>(e.account||'').toLowerCase()==='swipes')
-    .reduce((s,e)=>s+num(e.cost),0);
 }
 
 function renderSummary(){
   const spent=getSpentByPocket();
   const totalBudget=state.pockets.reduce((s,p)=>s+num(p.amount),0);
-  const totalSpent=getTotalSwipesSpent();
+  const totalSpent=state.entries.filter(e=>(e.account||'').toLowerCase()==='swipes').reduce((s,e)=>s+num(e.cost),0);
   const remaining=totalBudget-totalSpent;
-
-  document.getElementById('bigTotal').textContent=money(remaining);
-  document.getElementById('bigMeta').textContent=`Budgeted ${money(totalBudget)} · Spent ${money(totalSpent)}`;
-
+  const el=document.getElementById('bigTotal');
+  el.textContent=money(remaining);
+  el.className='amount'+(remaining<0?' over':'');
+  document.getElementById('bigMeta').textContent='Budgeted '+money(totalBudget)+' · Spent '+money(totalSpent);
   const rows=document.getElementById('summaryRows');
   rows.innerHTML='';
   state.pockets.forEach(p=>{
@@ -623,7 +833,7 @@ function renderSummary(){
     const cls=rem<0?'badge-bad':pct>0.75?'badge-warn':'badge-good';
     const div=document.createElement('div');
     div.className='pocket-row';
-    div.innerHTML=`<div><div class="name">${esc(p.name)}</div><div class="sub">Budgeted ${money(b)} · Spent ${money(s)}</div></div><div class="badge ${cls}">${money(rem)}</div>`;
+    div.innerHTML='<div><div class="name">'+esc(p.name)+'</div><div class="sub">Budget '+money(b)+' · Spent '+money(s)+'</div></div><div class="badge '+cls+'">'+money(rem)+'</div>';
     rows.appendChild(div);
   });
 }
@@ -633,46 +843,41 @@ function renderLedger(){
   const body=document.getElementById('ledgerBody');
   body.innerHTML='';
   if(!state.entries.length){
-    body.innerHTML='<tr><td colspan="6" class="empty">No expenses yet this week.</td></tr>';
+    body.innerHTML='<tr><td colspan="6" class="empty">No expenses this week.</td></tr>';
     return;
   }
   const accts=['Swipes','Spend','Savings'];
   state.entries.forEach(e=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td><input value="${esc(e.date)}" data-id="${e.id}" data-f="date" style="width:90px;"/></td>
-      <td><input value="${esc(e.item)}" data-id="${e.id}" data-f="item" style="min-width:90px;"/></td>
-      <td><select data-id="${e.id}" data-f="account">${accts.map(a=>`<option${e.account===a?' selected':''}>${a}</option>`).join('')}</select></td>
-      <td><input value="${esc(e.pocket)}" data-id="${e.id}" data-f="pocket" style="width:70px;"/></td>
-      <td><input type="number" step="0.01" value="${num(e.cost).toFixed(2)}" data-id="${e.id}" data-f="cost" style="width:65px;"/></td>
-      <td><button class="del-btn" data-del="${e.id}">×</button></td>
-    `;
+    tr.innerHTML=
+      '<td><input value="'+esc(e.date)+'" data-id="'+e.id+'" data-f="date" style="width:85px;"/></td>'+
+      '<td><input value="'+esc(e.item)+'" data-id="'+e.id+'" data-f="item" style="min-width:80px;"/></td>'+
+      '<td><select data-id="'+e.id+'" data-f="account">'+accts.map(a=>'<option'+(e.account===a?' selected':'')+'>'+a+'</option>').join('')+'</select></td>'+
+      '<td><input value="'+esc(e.pocket)+'" data-id="'+e.id+'" data-f="pocket" style="width:65px;"/></td>'+
+      '<td><input type="number" step="0.01" value="'+num(e.cost).toFixed(2)+'" data-id="'+e.id+'" data-f="cost" style="width:62px;"/></td>'+
+      '<td><button class="del-btn" data-del="'+e.id+'">×</button></td>';
     body.appendChild(tr);
   });
-
   body.querySelectorAll('[data-id]').forEach(el=>{
-    el.addEventListener('change', async ev=>{
+    el.addEventListener('change',async ev=>{
       const id=ev.target.dataset.id,f=ev.target.dataset.f;
       const entry=state.entries.find(x=>x.id===id);
       if(!entry) return;
       entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
-      saveLocal();
-      renderSummary();
-      renderPockets();
-      if(accessToken && sheetLoaded){
-        try{await rewriteSheetFromState(); showToast('Sheet updated','success');}
-        catch(e){showToast('Local saved, sheet error','');}
+      saveLocal(); renderSummary(); renderPockets();
+      if(accessToken&&sheetLoaded){
+        try{ await rewriteEntries(currentTabName); showToast('Sheet updated','success'); }
+        catch(e){ showToast('Local saved, sheet error','err'); }
       }
     });
   });
-
   body.querySelectorAll('[data-del]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
+    btn.addEventListener('click',async()=>{
       state.entries=state.entries.filter(x=>x.id!==btn.dataset.del);
       saveLocal(); renderLedger(); renderSummary(); renderPockets();
-      if(accessToken && sheetLoaded){
-        try{await rewriteSheetFromState(); showToast('Deleted from sheet','success');}
-        catch(e){showToast('Deleted locally, sheet error','');}
+      if(accessToken&&sheetLoaded){
+        try{ await rewriteEntries(currentTabName); showToast('Deleted from Sheet','success'); }
+        catch(e){ showToast('Deleted locally, sheet error','err'); }
       }
     });
   });
@@ -683,110 +888,141 @@ document.getElementById('addRowBtn').addEventListener('click',()=>{
   saveLocal(); renderLedger();
 });
 
-document.getElementById('clearWeekBtn').addEventListener('click', async ()=>{
-  if(!confirm('Clear all local expenses? (Your Google Sheet tab is not affected — you can rename/duplicate as usual.)')) return;
-  state.entries=[]; saveLocal(); renderLedger(); renderSummary(); switchTo('add');
-  sheetLoaded=false;
-  await loadFromSheet();
-});
-
 document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
   const rows=[['Date','Expense','Type','Source','Actual Cost'],
     ...state.entries.map(e=>[e.date,e.item,e.account,e.pocket,num(e.cost).toFixed(2)])];
   navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n'))
-    .then(()=>showToast('Copied — paste into Excel',''))
+    .then(()=>showToast('Copied for Excel',''))
     .catch(()=>showToast('Copy failed',''));
 });
 
-// ── POCKETS ───────────────────────────────────────────────────────────────────
+// ── SOURCES ───────────────────────────────────────────────────────────────────
 function renderPockets(){
   const spent=getSpentByPocket();
-  const wrap=document.getElementById('pocketEditorRows');
-  wrap.innerHTML='';
+  const body=document.getElementById('sourceBody');
+  body.innerHTML='';
+  const avail=state.totalSlots-state.filledSlots;
+  // Slot info
+  document.getElementById('slotInfo').textContent=
+    state.totalSlots>0?state.filledSlots+' of '+state.totalSlots+' source slots used ('+avail+' open)':'';
+
+  if(!state.pockets.length){
+    body.innerHTML='<tr><td colspan="4" class="empty">Loading sources from Sheet…</td></tr>';
+    return;
+  }
   state.pockets.forEach(p=>{
-    const s=spent[p.name]||0, rem=num(p.amount)-s;
-    const row=document.createElement('div');
-    row.className='pocket-edit-row';
-    row.innerHTML=`
-      <input value="${esc(p.name)}" data-pid="${p.id}" data-pf="name" placeholder="Name"/>
-      <input type="number" step="0.01" value="${num(p.amount).toFixed(2)}" data-pid="${p.id}" data-pf="amount" placeholder="0.00"/>
-      <span class="stat">${money(s)}</span>
-      <span class="stat" style="color:${rem<0?'var(--danger)':rem<num(p.amount)*0.25?'var(--warn)':'var(--accent)'}">${money(rem)}</span>
-      <button class="del-btn" data-dpid="${p.id}">×</button>
-    `;
-    wrap.appendChild(row);
+    const s=spent[p.name]||0,rem=num(p.amount)-s;
+    const color=rem<0?'var(--danger-text)':rem<num(p.amount)*0.25?'var(--warn-text)':'var(--accent-text)';
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td><input class="src-name-input" value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="name" style="border:1px solid var(--border2);background:var(--surface2);color:var(--ink);font-size:14px;font-family:var(--sans);padding:6px 10px;border-radius:8px;width:100%;"/></td>'+
+      '<td style="text-align:right;"><input type="number" step="0.01" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="amount"/></td>'+
+      '<td class="source-stat">'+money(s)+'</td>'+
+      '<td class="source-stat" style="color:'+color+'">'+money(rem)+'</td>';
+    body.appendChild(tr);
   });
 
-  wrap.querySelectorAll('[data-pid]').forEach(el=>{
-    el.addEventListener('change',ev=>{
-      const id=ev.target.dataset.pid,f=ev.target.dataset.pf;
+  body.querySelectorAll('[data-src-field]').forEach(input=>{
+    input.addEventListener('change',async ev=>{
+      const row=parseInt(ev.target.dataset.srcRow);
+      const id=ev.target.dataset.srcId;
+      const field=ev.target.dataset.srcField;
       const p=state.pockets.find(x=>x.id===id);
       if(!p) return;
-      p[f]=f==='amount'?num(ev.target.value):ev.target.value;
-      saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
-    });
-  });
-
-  wrap.querySelectorAll('[data-dpid]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      state.pockets=state.pockets.filter(x=>x.id!==btn.dataset.dpid);
-      saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+      if(field==='amount'){
+        const val=num(ev.target.value);
+        p.amount=val;
+        saveLocal(); renderPockets(); renderSummary();
+        if(accessToken){
+          try{ await writeSourceAmount(row,val); showToast('Budget updated in Sheet','success'); }
+          catch(e){ showToast('Local saved, sheet error','err'); }
+        }
+      } else if(field==='name'){
+        const val=ev.target.value.trim();
+        if(!val){ showToast('Source name cannot be empty','err'); ev.target.value=p.name; return; }
+        p.name=val;
+        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+        if(accessToken){
+          try{ await writeSourceName(row,val); showToast('Source name updated in Sheet','success'); }
+          catch(e){ showToast('Local saved, sheet error','err'); }
+        }
+      }
     });
   });
 }
-
-document.getElementById('addPocketBtn').addEventListener('click',()=>{
-  state.pockets.push({id:uid(),name:'New Source',amount:0});
-  saveLocal(); buildPocketSelect(); renderPockets();
-});
-
-document.getElementById('copyPocketsBtn').addEventListener('click',()=>{
-  const rows=[['Source','Weekly Budget'],
-    ...state.pockets.map(p=>[p.name,num(p.amount).toFixed(2)])];
-  navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n'))
-    .then(()=>showToast('Copied — paste into Excel',''))
-    .catch(()=>showToast('Copy failed',''));
-});
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
-function renderAll(){
-  buildPocketSelect();
-  renderSummary();
-  renderLedger();
-  renderPockets();
+function renderAll(){ buildPocketSelect(); renderSummary(); renderLedger(); renderPockets(); }
+
+// ── BANNERS ───────────────────────────────────────────────────────────────────
+const SVG_INFO='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="12" x2="12" y2="16"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/></svg>';
+const SVG_WARN='<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>';
+const SVG_ERR='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+function showBanner(id,type,msg){
+  const icon={info:SVG_INFO,warn:SVG_WARN,error:SVG_ERR}[type]||SVG_INFO;
+  document.getElementById(id).innerHTML='<div class="status-banner '+type+'">'+icon+'<span>'+msg+'</span></div>';
 }
+function clearBanner(id){ document.getElementById(id).innerHTML=''; }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg, type){
+let _tt;
+function showToast(msg,type){
   const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.className='toast show'+(type==='success'?' success':type==='error'?' error-toast':'');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+  t.textContent=msg; t.className='toast show'+(type?' '+type:'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2500);
 }
 
 // ── GOOGLE IDENTITY ───────────────────────────────────────────────────────────
 function initGoogleAuth(){
+  // Initialize token client for OAuth flow
   tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (resp)=>{
-      if(resp.error) return;
-      accessToken=resp.access_token;
-      updateAuthUI(true);
+    client_id:CLIENT_ID,
+    scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error){ console.warn('Token error',resp.error); return; }
+      onTokenReceived(resp.access_token, resp.expires_in);
     },
   });
+
+  // Initialize One Tap
+  google.accounts.id.initialize({
+    client_id:CLIENT_ID,
+    callback:onOneTapCredential,
+    auto_select:true,
+    cancel_on_tap_outside:false,
+  });
+  google.accounts.id.prompt(); // show One Tap bubble if session available
+
+  // Try silent restore from stored token
+  const saved=loadToken();
+  if(saved){
+    // Validate quickly
+    fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'?fields=spreadsheetId',{
+      headers:{'Authorization':'Bearer '+saved}
+    }).then(r=>{
+      if(r.ok){
+        accessToken=saved;
+        // Schedule refresh before expiry
+        const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
+        const msLeft=stored.exp?stored.exp-Date.now():0;
+        if(msLeft>60000){
+          silentRefreshTimer=setTimeout(()=>tokenClient.requestAccessToken({prompt:''}),msLeft-60000);
+        }
+        updateAuthUI(true);
+      } else {
+        clearToken();
+        // Don't force prompt — One Tap will handle it
+      }
+    }).catch(()=>clearToken());
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadLocal();
+buildWeekOptions();
 buildPocketSelect();
 renderAll();
 </script>
-
-<!-- Load Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" onload="initGoogleAuth()" async defer></script>
-
 </body>
 </html>
