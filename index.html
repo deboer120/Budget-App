@@ -916,10 +916,12 @@ document.getElementById('addSourceBtn').addEventListener('click',async()=>{
   const nextRow=SOURCE_START_ROW+state.filledSlots;
   setSpinner(true);
   try{
-    // Write name to col B, default amount 0 to col S
-    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow+":S"+nextRow)+'?valueInputOption=USER_ENTERED',{
-      range:"'Money Allocation'!B"+nextRow+":S"+nextRow,
-      values:[[trimmed,'','','','','','','','','','','','','','','','','',0]]
+    // Write name to col B and amount to col S as two separate targeted writes
+    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow)+'?valueInputOption=USER_ENTERED',{
+      range:"'Money Allocation'!B"+nextRow, values:[[trimmed]]
+    });
+    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!S"+nextRow)+'?valueInputOption=USER_ENTERED',{
+      range:"'Money Allocation'!S"+nextRow, values:[[0]]
     });
     // Refresh sources from sheet to pick up the new row
     const r=await loadSourcesFromSheet();
