@@ -482,12 +482,23 @@ document.getElementById('headerDate').textContent=MONTHS[_now.getMonth()]+' '+_n
 const panels=document.querySelectorAll('.panel');
 const navBtns=document.querySelectorAll('.nav-btn');
 
+// Refresh lock + cooldown
+let _refreshLock = false;
+let _lastRefresh = 0;
+const REFRESH_COOLDOWN = 3000; // 3 seconds
+
+function canRefresh(){
+  if(_refreshLock) return false;
+  if(Date.now()-_lastRefresh < REFRESH_COOLDOWN) return false;
+  return true;
+}
+
 function switchTo(name){
   panels.forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
   navBtns.forEach(b=>b.classList.toggle('active',b.dataset.panel===name));
   if(name==='ledger') refreshLedger();
   else if(name==='pockets') refreshSources();
-  else if(name==='summary') renderSummary();
+  else if(name==='summary') doFullRefresh();
   else if(name==='add') doFullRefresh();
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
@@ -570,6 +581,21 @@ async function sheetsReq(method,path,body){
 async function getSheetNames(){
   const data=await sheetsReq('GET','?fields=sheets.properties.title');
   return (data.sheets||[]).map(s=>s.properties.title);
+}
+
+async function reorderTabs(currentWeekName){
+  // Get full sheet metadata including sheetIds
+  const data=await sheetsReq('GET','?fields=sheets.properties');
+  const sheets=data.sheets||[];
+  const findId=name=>{ const s=sheets.find(x=>x.properties.title===name); return s?s.properties.sheetId:null; };
+  const requests=[];
+  const weekId=findId(currentWeekName);
+  const allocId=findId('Money Allocation');
+  // Move current week to index 0
+  if(weekId!==null) requests.push({updateSheetProperties:{properties:{sheetId:weekId,index:0},fields:'index'}});
+  // Move Money Allocation to index 1
+  if(allocId!==null) requests.push({updateSheetProperties:{properties:{sheetId:allocId,index:1},fields:'index'}});
+  if(requests.length) await sheetsReq('POST',':batchUpdate',{requests});
 }
 
 async function createTabFromTemplate(newName){
@@ -679,6 +705,8 @@ async function rewriteEntries(tab){
 // ── FULL REFRESH ──────────────────────────────────────────────────────────────
 async function doFullRefresh(){
   if(!accessToken) return;
+  if(!canRefresh()) return;
+  _refreshLock=true; _lastRefresh=Date.now();
   setSpinner(true);
   try{
     // Ensure current week tab exists
@@ -693,6 +721,9 @@ async function doFullRefresh(){
         showBanner('addBanner','error',e.message+' — please create the tab manually in Google Sheets.');
       }
     }
+    // Reorder tabs: current week first, Money Allocation second
+    try{ await reorderTabs(currentTabName); }catch(e){ console.warn('Tab reorder failed:',e.message); }
+
     // Load entries + sources in parallel
     const [entries, srcResult]=await Promise.all([
       loadEntriesFromTab(currentTabName),
@@ -709,28 +740,33 @@ async function doFullRefresh(){
     showToast('Sync error: '+e.message,'err');
   }finally{
     setSpinner(false);
+    _refreshLock=false;
   }
 }
 
 async function refreshLedger(){
   if(!accessToken||!sheetLoaded) return;
+  if(!canRefresh()) return;
+  _refreshLock=true; _lastRefresh=Date.now();
   setSpinner(true);
   try{
     state.entries=await loadEntriesFromTab(currentTabName);
     saveLocal(); renderLedger(); renderSummary();
   }catch(e){ showToast('Ledger sync error','err'); }
-  finally{ setSpinner(false); }
+  finally{ setSpinner(false); _refreshLock=false; }
 }
 
 async function refreshSources(){
   if(!accessToken||!sheetLoaded) return;
+  if(!canRefresh()) return;
+  _refreshLock=true; _lastRefresh=Date.now();
   setSpinner(true);
   try{
     const r=await loadSourcesFromSheet();
     state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
     saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
   }catch(e){ showToast('Sources sync error','err'); }
-  finally{ setSpinner(false); }
+  finally{ setSpinner(false); _refreshLock=false; }
 }
 
 function setSpinner(on){ document.getElementById('refreshBtn').classList.toggle('spinning',on); }
