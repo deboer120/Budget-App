@@ -377,11 +377,18 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
         </div>
-        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;table-layout:auto;">
+        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <colgroup>
+              <col style="width:30%;"/>
+              <col style="width:18%;"/>
+              <col style="width:18%;"/>
+              <col style="width:18%;"/>
+              <col style="width:16%;"/>
+            </colgroup>
             <thead><tr>
               <th>Source</th>
-              <th>Weekly ($)</th>
+              <th>Weekly</th>
               <th>Spent</th>
               <th>Left</th>
               <th></th>
@@ -414,11 +421,16 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
       </div>
       <div class="card" id="planItemsCard" style="display:none;padding-bottom:10px;">
-        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;table-layout:auto;">
+        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <colgroup>
+              <col style="width:65%;"/>
+              <col style="width:25%;"/>
+              <col style="width:10%;"/>
+            </colgroup>
             <thead><tr>
               <th>Description</th>
-              <th>Amount ($)</th>
+              <th>Amount</th>
               <th></th>
             </tr></thead>
             <tbody id="planBody"></tbody>
@@ -1053,7 +1065,7 @@ function renderPockets(){
   document.getElementById('slotInfo').textContent=
     state.totalSlots>0?state.filledSlots+' of '+state.totalSlots+' source slots used ('+avail+' open)':'';
 
-  const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 8px;outline:none;';
+  const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 8px;outline:none;overflow:hidden;text-overflow:ellipsis;';
   const monoStyle=iStyle+'font-family:var(--mono);';
 
   // Render filled sources
@@ -1268,7 +1280,7 @@ function renderPlanner(){
 
   rowsToRender.forEach((item)=>{
     const isFilled=item.desc||item.amount;
-    const piStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:10px 8px;outline:none;';
+    const piStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:10px 8px;outline:none;overflow:hidden;text-overflow:ellipsis;';
     const pmStyle='border:none;background:transparent;font-size:13px;font-family:var(--mono);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:10px 8px;outline:none;';
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
