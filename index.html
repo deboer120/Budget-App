@@ -600,16 +600,21 @@ function signOut(){
 
 async function exchangeCode(code){
   const verifier=sessionStorage.getItem('pkce_v');
-  if(!verifier) throw new Error('No PKCE verifier');
+  if(!verifier) throw new Error('No PKCE verifier — try signing in again');
+  const body=new URLSearchParams({
+    client_id:CLIENT_ID, code, code_verifier:verifier,
+    grant_type:'authorization_code', redirect_uri:REDIRECT_URI,
+  });
   const resp=await fetch(TOKEN_ENDPOINT,{
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:new URLSearchParams({
-      client_id:CLIENT_ID, code, code_verifier:verifier,
-      grant_type:'authorization_code', redirect_uri:REDIRECT_URI,
-    })
+    body
   });
-  if(!resp.ok) throw new Error('Token exchange failed: '+resp.status);
+  if(!resp.ok){
+    const errData=await resp.json().catch(()=>({}));
+    const msg='Token error '+resp.status+': '+(errData.error||'unknown')+' — '+(errData.error_description||'no detail');
+    throw new Error(msg);
+  }
   return resp.json();
 }
 
@@ -624,7 +629,10 @@ async function doTokenRefresh(){
       grant_type:'refresh_token',
     })
   });
-  if(!resp.ok) throw new Error('Refresh failed: '+resp.status);
+  if(!resp.ok){
+    const errData=await resp.json().catch(()=>({}));
+    throw new Error('Refresh error '+resp.status+': '+(errData.error||'unknown')+' — '+(errData.error_description||''));
+  }
   return resp.json();
 }
 
@@ -1409,6 +1417,9 @@ document.getElementById('newPlanBtn').addEventListener('click',async()=>{
 
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// Show any stored error from previous redirect attempt
+const _storedErr=localStorage.getItem('budget_last_err');
+if(_storedErr){ setTimeout(()=>{ showToast(_storedErr,'err'); localStorage.removeItem('budget_last_err'); },500); }
 loadLocal();
 buildWeekOptions();
 buildPocketSelect();
@@ -1434,7 +1445,12 @@ async function initGoogleAuth(){
       sessionStorage.removeItem('pkce_v');
       onTokenReceived(data.access_token, data.refresh_token, data.expires_in||3600);
     }catch(e){
-      showToast('Sign-in failed: '+e.message,'err');
+      // Show full error for debugging — remove once working
+      const errMsg=e.message||'Unknown error';
+      showToast(errMsg,'err');
+      // Also store in localStorage so it survives any redirect
+      localStorage.setItem('budget_last_err',errMsg);
+      console.error('PKCE exchange error:',e);
     }
     return;
   }
