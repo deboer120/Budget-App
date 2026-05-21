@@ -100,7 +100,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 .bottom-nav{
   position:fixed;bottom:0;left:0;right:0;
   background:var(--surface);border-top:1px solid var(--border);
-  display:grid;grid-template-columns:repeat(4,1fr);
+  display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;
   height:var(--tab-h);z-index:100;
 }
 .nav-btn{
@@ -111,6 +111,19 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 }
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .nav-btn.active{color:var(--accent-text);}
+.nav-btn.active.summary-btn{color:#fff;}
+.summary-btn{
+  position:relative;bottom:10px;
+  width:58px;height:58px;border-radius:50%;
+  background:var(--accent-text);color:#fff;
+  box-shadow:0 0 0 5px var(--bg);
+  font-size:9px;font-weight:700;
+  transition:transform 0.15s,background 0.15s;
+  margin:0 auto;
+}
+.summary-btn svg{width:24px;height:24px;}
+.summary-btn.active{background:var(--accent-text);}
+.summary-btn:active{transform:scale(0.95);}
 
 /* Panels */
 .panel{display:none;}
@@ -333,15 +346,18 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <div class="panel" id="panel-ledger">
       <div id="ledgerBanner"></div>
       <div class="card" style="padding-bottom:10px;">
-        <div class="section-title">Weekly Ledger</div>
-        <div class="btn-row" style="margin-top:0;margin-bottom:10px;">
-          <button class="btn btn-secondary" id="addRowBtn" style="font-size:13px;padding:9px 12px;">+ Add Row</button>
-          <button class="btn btn-secondary" id="copyLedgerBtn" style="font-size:13px;padding:9px 12px;">Copy for Excel</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="section-title" style="margin:0;">Weekly Ledger</div>
+          <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
         </div>
-        <div class="ledger-scroll">
-          <table>
+        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table style="width:100%;border-collapse:collapse;min-width:320px;table-layout:fixed;">
             <thead><tr>
-              <th>Date</th><th>Expense</th><th>Type</th><th>Source</th><th>Cost</th><th></th>
+              <th style="width:72px;">Date</th>
+              <th>Expense</th>
+              <th style="width:80px;">Source</th>
+              <th style="width:68px;text-align:right;">Cost</th>
+              <th style="width:32px;"></th>
             </tr></thead>
             <tbody id="ledgerBody"></tbody>
           </table>
@@ -353,12 +369,10 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <!-- SOURCES -->
     <div class="panel" id="panel-pockets">
       <div id="sourcesBanner"></div>
-      <div class="card" style="padding-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
-          <button class="btn btn-secondary" id="addSourceBtn" style="width:auto;padding:7px 12px;font-size:13px;">+ Add Source</button>
+      <div class="card" style=        <div style="margin-bottom:12px;">
+          <div class="section-title">Swipes Budget by Source</div>
         </div>
-        <p class="muted" style="margin-top:0;margin-bottom:12px;font-size:12px;">Source names sync from Money Allocation col B. Edit amounts to update col S.</p>
+"muted" style="margin-top:0;margin-bottom:12px;font-size:12px;">Source names sync from Money Allocation col B. Edit amounts to update col S.</p>
         <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
           <table class="source-table">
             <thead><tr>
@@ -375,6 +389,40 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       </div>
     </div>
 
+    <!-- PLANNER -->
+    <div class="panel" id="panel-planner">
+      <div id="plannerBanner"></div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div class="section-title" style="margin:0;">Budget Planner</div>
+          <button class="btn btn-secondary" id="newPlanBtn" style="width:auto;padding:7px 12px;font-size:13px;">+ New Plan</button>
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Select Plan</label>
+          <select id="planSelect">
+            <option value="">— no plans yet —</option>
+          </select>
+        </div>
+      </div>
+      <div id="planBalanceCard" style="display:none;" class="balance-card">
+        <div class="label">Planned Spend</div>
+        <div class="amount" id="planTotal">$0.00</div>
+        <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
+      </div>
+      <div class="card" id="planItemsCard" style="display:none;padding-bottom:10px;">
+        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table class="source-table" id="planTable">
+            <thead><tr>
+              <th>Description</th>
+              <th style="text-align:right;">Amount ($)</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="planBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
@@ -382,17 +430,21 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       Add
     </button>
-    <button class="nav-btn" data-panel="summary">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h5M8 16h3"/></svg>
-      Summary
-    </button>
     <button class="nav-btn" data-panel="ledger">
       <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
       Ledger
     </button>
+    <button class="nav-btn summary-btn" data-panel="summary">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h5M8 16h3"/></svg>
+      Summary
+    </button>
     <button class="nav-btn" data-panel="pockets">
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
       Sources
+    </button>
+    <button class="nav-btn" data-panel="planner">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Planner
     </button>
   </nav>
 </div>
@@ -415,7 +467,6 @@ const MAX_SOURCE_ROW   = 40; // safety cap — scan won't go beyond this
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = { entries:[], pockets:[], totalSlots:0, filledSlots:0 };
 let accessToken  = null;
-let tokenClient  = null;
 let currentTabName = '';
 let sheetLoaded  = false;
 let silentRefreshTimer = null;
@@ -495,45 +546,119 @@ function canRefresh(){
 
 function switchTo(name){
   panels.forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
-  navBtns.forEach(b=>b.classList.toggle('active',b.dataset.panel===name));
+  navBtns.forEach(b=>{
+    b.classList.toggle('active',b.dataset.panel===name);
+  });
   if(name==='ledger') refreshLedger();
   else if(name==='pockets') refreshSources();
   else if(name==='summary') doFullRefresh();
   else if(name==='add') doFullRefresh();
+  else if(name==='planner') loadPlannerPanel();
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
-function handleAuth(){
-  if(accessToken){
-    if(confirm('Sign out?')){ signOut(); }
-    return;
-  }
-  tokenClient.requestAccessToken({prompt:'consent'});
+// ── AUTH — PKCE + refresh tokens (works on iOS, no cookies needed) ────────────
+const REDIRECT_URI    = 'https://deboer120.github.io/Budget-App/';
+const AUTH_ENDPOINT   = 'https://accounts.google.com/o/oauth2/v2/auth';
+const TOKEN_ENDPOINT  = 'https://oauth2.googleapis.com/token';
+const REFRESH_KEY     = 'budget_refresh_v1';
+
+function saveRefreshToken(t){ try{ localStorage.setItem(REFRESH_KEY,t); }catch(e){} }
+function loadRefreshToken(){ try{ return localStorage.getItem(REFRESH_KEY)||null; }catch(e){ return null; } }
+function clearRefreshToken(){ try{ localStorage.removeItem(REFRESH_KEY); }catch(e){} }
+
+async function generateVerifier(){
+  const arr=new Uint8Array(64); crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+async function generateChallenge(v){
+  const data=new TextEncoder().encode(v);
+  const digest=await crypto.subtle.digest('SHA-256',data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function handleAuth(){
+  if(accessToken){ if(confirm('Sign out?')){ signOut(); } return; }
+  const verifier=await generateVerifier();
+  const challenge=await generateChallenge(verifier);
+  sessionStorage.setItem('pkce_v',verifier);
+  const params=new URLSearchParams({
+    client_id:CLIENT_ID, redirect_uri:REDIRECT_URI,
+    response_type:'code', scope:SCOPES,
+    code_challenge:challenge, code_challenge_method:'S256',
+    access_type:'offline', prompt:'consent',
+  });
+  window.location.href=AUTH_ENDPOINT+'?'+params.toString();
 }
 
 function signOut(){
-  accessToken=null; clearToken();
+  accessToken=null; clearToken(); clearRefreshToken();
+  sessionStorage.removeItem('pkce_v');
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
   updateAuthUI(false);
 }
 
-function onTokenReceived(token, expiresIn){
-  accessToken=token;
-  saveToken(token, expiresIn||3600);
-  // Schedule silent refresh at 55 min
+async function exchangeCode(code){
+  const verifier=sessionStorage.getItem('pkce_v');
+  if(!verifier) throw new Error('No PKCE verifier');
+  const resp=await fetch(TOKEN_ENDPOINT,{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({
+      client_id:CLIENT_ID, code, code_verifier:verifier,
+      grant_type:'authorization_code', redirect_uri:REDIRECT_URI,
+    })
+  });
+  if(!resp.ok) throw new Error('Token exchange failed: '+resp.status);
+  return resp.json();
+}
+
+async function doTokenRefresh(){
+  const rt=loadRefreshToken();
+  if(!rt) throw new Error('No refresh token');
+  const resp=await fetch(TOKEN_ENDPOINT,{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({
+      client_id:CLIENT_ID, refresh_token:rt,
+      grant_type:'refresh_token',
+    })
+  });
+  if(!resp.ok) throw new Error('Refresh failed: '+resp.status);
+  return resp.json();
+}
+
+function scheduleRefresh(expiresIn){
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
-  silentRefreshTimer=setTimeout(()=>{
-    tokenClient.requestAccessToken({prompt:''});
-  }, ((expiresIn||3600)-60)*1000);
+  const delay=Math.max(((expiresIn||3600)-120)*1000, 10000);
+  silentRefreshTimer=setTimeout(async()=>{
+    try{
+      const data=await doTokenRefresh();
+      accessToken=data.access_token;
+      saveToken(data.access_token, data.expires_in||3600);
+      scheduleRefresh(data.expires_in||3600);
+    }catch(e){
+      accessToken=null; clearToken();
+      updateAuthUI(false);
+    }
+  },delay);
+}
+
+function onTokenReceived(accessTok, refreshTok, expiresIn){
+  accessToken=accessTok;
+  saveToken(accessTok, expiresIn||3600);
+  if(refreshTok) saveRefreshToken(refreshTok);
+  scheduleRefresh(expiresIn||3600);
   updateAuthUI(true);
 }
 
-// One Tap credential callback — exchange id_token for access token via silent flow
+// One Tap callback — still works on Android/desktop as a fast path
 function onOneTapCredential(response){
-  // One Tap gives us an id_token; we then request an access token silently
-  if(tokenClient){
-    tokenClient.requestAccessToken({prompt:''});
+  const rt=loadRefreshToken();
+  if(rt){
+    doTokenRefresh().then(data=>{
+      onTokenReceived(data.access_token, data.refresh_token||rt, data.expires_in);
+    }).catch(()=>{});
   }
 }
 
@@ -564,15 +689,15 @@ async function sheetsReq(method,path,body){
   if(body) opts.body=JSON.stringify(body);
   const res=await fetch(url,opts);
   if(res.status===401){
-    // Token expired — try silent refresh then retry once
+    // Token expired — try refresh token silently
     accessToken=null; clearToken();
-    return new Promise((resolve,reject)=>{
-      tokenClient.requestAccessToken({prompt:'',callback:(resp)=>{
-        if(resp.error){ signOut(); reject(new Error('Session expired')); return; }
-        onTokenReceived(resp.access_token, resp.expires_in);
-        sheetsReq(method,path,body).then(resolve).catch(reject);
-      }});
-    });
+    try{
+      const data=await doTokenRefresh();
+      onTokenReceived(data.access_token, data.refresh_token||loadRefreshToken(), data.expires_in);
+      return sheetsReq(method,path,body); // retry once
+    }catch(e){
+      signOut(); throw new Error('Session expired — please sign in again');
+    }
   }
   if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||'Sheets error '+res.status); }
   return res.status===204?{}:res.json();
@@ -816,7 +941,7 @@ async function doSave(goTo){
   const pocket=account==='Swipes'?document.getElementById('pocket').value:'';
   const tabName=document.getElementById('weekSelect').value;
   if(!item){ showToast('Enter what you paid for',''); return; }
-  if(cost<=0){ showToast('Enter a cost greater than 0',''); return; }
+  if(cost===0){ showToast('Enter a non-zero amount',''); return; }
   const entry={id:uid(),date:todayStr(),item,account,pocket,cost};
   const btnR=document.getElementById('saveBtnReview');
   const btnA=document.getElementById('saveBtnAnother');
@@ -883,23 +1008,42 @@ function renderSummary(){
 function renderLedger(){
   const body=document.getElementById('ledgerBody');
   body.innerHTML='';
-  if(!state.entries.length){
-    body.innerHTML='<tr><td colspan="6" class="empty">No expenses this week.</td></tr>';
-    return;
+  // Ensure trailing blank entry
+  const last=state.entries[state.entries.length-1];
+  if(!last||last.item||last.cost){
+    state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
   }
-  const accts=['Swipes','Spend','Savings'];
-  state.entries.forEach(e=>{
+  const pocketOpts='<option value="">—</option>'+state.pockets.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>').join('');
+  const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 0;outline:none;';
+  const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
+
+  state.entries.forEach((e)=>{
+    const isFilled=e.item||e.cost;
     const tr=document.createElement('tr');
+    tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td><input value="'+esc(e.date)+'" data-id="'+e.id+'" data-f="date" style="width:85px;"/></td>'+
-      '<td><input value="'+esc(e.item)+'" data-id="'+e.id+'" data-f="item" style="min-width:80px;"/></td>'+
-      '<td><select data-id="'+e.id+'" data-f="account">'+accts.map(a=>'<option'+(e.account===a?' selected':'')+'>'+a+'</option>').join('')+'</select></td>'+
-      '<td><input value="'+esc(e.pocket)+'" data-id="'+e.id+'" data-f="pocket" style="width:65px;"/></td>'+
-      '<td><input type="number" step="0.01" value="'+num(e.cost).toFixed(2)+'" data-id="'+e.id+'" data-f="cost" style="width:62px;"/></td>'+
-      '<td><button class="del-btn" data-del="'+e.id+'">×</button></td>';
+      '<td style="padding:0 8px;"><input value="'+esc(e.date)+'" data-id="'+e.id+'" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/></td>'+
+      '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/></td>'+
+      '<td style="padding:0 4px;"><select data-id="'+e.id+'" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'</select></td>'+
+      '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/></td>'+
+      '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7</button>':'')+'</td>';
     body.appendChild(tr);
+    tr.querySelector('[data-f="pocket"]').value=e.pocket||'';
   });
+
   body.querySelectorAll('[data-id]').forEach(el=>{
+    el.addEventListener('input',ev=>{
+      const id=ev.target.dataset.id,f=ev.target.dataset.f;
+      const entry=state.entries.find(x=>x.id===id);
+      if(!entry) return;
+      entry[f]=ev.target.value;
+      // Add new blank if last row is being filled
+      const last=state.entries[state.entries.length-1];
+      if(last.item||last.cost){
+        state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
+        renderLedger(); return;
+      }
+    });
     el.addEventListener('change',async ev=>{
       const id=ev.target.dataset.id,f=ev.target.dataset.f;
       const entry=state.entries.find(x=>x.id===id);
@@ -912,6 +1056,7 @@ function renderLedger(){
       }
     });
   });
+
   body.querySelectorAll('[data-del]').forEach(btn=>{
     btn.addEventListener('click',async()=>{
       state.entries=state.entries.filter(x=>x.id!==btn.dataset.del);
@@ -924,81 +1069,83 @@ function renderLedger(){
   });
 }
 
-document.getElementById('addRowBtn').addEventListener('click',()=>{
-  state.entries.unshift({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:0});
-  saveLocal(); renderLedger();
-});
-
 document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
   const rows=[['Date','Expense','Type','Source','Actual Cost'],
-    ...state.entries.map(e=>[e.date,e.item,e.account,e.pocket,num(e.cost).toFixed(2)])];
+    ...state.entries.filter(e=>e.item||e.cost).map(e=>[e.date,e.item,e.account||'Swipes',e.pocket,num(e.cost).toFixed(2)])];
   navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n'))
     .then(()=>showToast('Copied for Excel',''))
     .catch(()=>showToast('Copy failed',''));
 });
 
+
 // ── SOURCES ───────────────────────────────────────────────────────────────────
-document.getElementById('addSourceBtn').addEventListener('click',async()=>{
-  const avail=state.totalSlots-state.filledSlots;
-  if(avail<=0){
-    showToast('No empty slots left in your Sheet. Add more rows in Money Allocation first.','err');
-    return;
-  }
-  const name=prompt('New source name:');
-  if(!name||!name.trim()) return;
-  const trimmed=name.trim();
-  if(state.pockets.some(p=>p.name.toLowerCase()===trimmed.toLowerCase())){
-    showToast('A source with that name already exists','err'); return;
-  }
-  // Find next empty slot row in Money Allocation col B starting from SOURCE_START_ROW
-  const nextRow=SOURCE_START_ROW+state.filledSlots;
-  setSpinner(true);
-  try{
-    // Write name to col B and amount to col S as two separate targeted writes
-    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow)+'?valueInputOption=USER_ENTERED',{
-      range:"'Money Allocation'!B"+nextRow, values:[[trimmed]]
-    });
-    await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!S"+nextRow)+'?valueInputOption=USER_ENTERED',{
-      range:"'Money Allocation'!S"+nextRow, values:[[0]]
-    });
-    // Refresh sources from sheet to pick up the new row
-    const r=await loadSourcesFromSheet();
-    state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
-    saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
-    showToast('Source "'+trimmed+'" added','success');
-  }catch(e){
-    showToast('Could not add source: '+e.message,'err');
-  }finally{
-    setSpinner(false);
-  }
-});
 
 function renderPockets(){
   const spent=getSpentByPocket();
   const body=document.getElementById('sourceBody');
   body.innerHTML='';
   const avail=state.totalSlots-state.filledSlots;
-  // Slot info
   document.getElementById('slotInfo').textContent=
     state.totalSlots>0?state.filledSlots+' of '+state.totalSlots+' source slots used ('+avail+' open)':'';
 
-  if(!state.pockets.length){
-    body.innerHTML='<tr><td colspan="4" class="empty">Loading sources from Sheet…</td></tr>';
-    return;
-  }
+  const iStyle='border:none;background:transparent;font-size:14px;font-family:var(--sans);color:var(--ink);width:100%;padding:11px 12px;outline:none;';
+
+  // Render filled sources
   state.pockets.forEach(p=>{
     const s=spent[p.name]||0,rem=num(p.amount)-s;
     const color=rem<0?'var(--danger-text)':rem<num(p.amount)*0.25?'var(--warn-text)':'var(--accent-text)';
     const tr=document.createElement('tr');
     tr.innerHTML=
-      '<td><input class="src-name-input" value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="name" style="border:1px solid var(--border2);background:var(--surface2);color:var(--ink);font-size:14px;font-family:var(--sans);padding:6px 10px;border-radius:8px;width:100%;"/></td>'+
-      '<td style="text-align:right;"><input type="number" step="0.01" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="amount"/></td>'+
-      '<td class="source-stat">'+money(s)+'</td>'+
-      '<td class="source-stat" style="color:'+color+'">'+money(rem)+'</td>'+
-      '<td><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'" title="Delete source">×</button></td>';
+      '<td style="padding:0;"><input value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="name" style="'+iStyle+'border-right:1px solid var(--border);"/></td>'+
+      '<td style="padding:0;text-align:right;"><input type="number" step="0.01" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="amount" style="'+iStyle+'text-align:right;font-family:var(--mono);width:90px;"/></td>'+
+      '<td class="source-stat" style="padding:11px 12px;">'+money(s)+'</td>'+
+      '<td class="source-stat" style="padding:11px 12px;color:'+color+'">'+money(rem)+'</td>'+
+      '<td style="padding:0 8px;text-align:center;"><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'">\u00d7</button></td>';
     body.appendChild(tr);
   });
 
+  // Blank row for adding new source (only if slots available)
+  if(avail>0){
+    const blankTr=document.createElement('tr');
+    blankTr.innerHTML=
+      '<td style="padding:0;"><input id="newSrcName" placeholder="New source\u2026" style="'+iStyle+'border-right:1px solid var(--border);"/></td>'+
+      '<td style="padding:0;text-align:right;"><input id="newSrcAmt" type="number" step="0.01" placeholder="0.00" style="'+iStyle+'text-align:right;font-family:var(--mono);width:90px;"/></td>'+
+      '<td class="source-stat" style="padding:11px 12px;">—</td>'+
+      '<td class="source-stat" style="padding:11px 12px;">—</td>'+
+      '<td></td>';
+    body.appendChild(blankTr);
+
+    // Wire blank row — save when both name and amount are filled and user leaves field
+    const nameInp=blankTr.querySelector('#newSrcName');
+    const amtInp=blankTr.querySelector('#newSrcAmt');
+    async function tryAddSource(){
+      const name=nameInp.value.trim();
+      const amount=num(amtInp.value);
+      if(!name) return;
+      if(state.pockets.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+        showToast('Source "'+name+'" already exists','err'); nameInp.value=''; return;
+      }
+      const nextRow=SOURCE_START_ROW+state.filledSlots;
+      setSpinner(true);
+      try{
+        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow)+'?valueInputOption=USER_ENTERED',{
+          range:"'Money Allocation'!B"+nextRow,values:[[name]]
+        });
+        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!S"+nextRow)+'?valueInputOption=USER_ENTERED',{
+          range:"'Money Allocation'!S"+nextRow,values:[[amount||0]]
+        });
+        const r=await loadSourcesFromSheet();
+        state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
+        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+        showToast('Source "'+name+'" added','success');
+      }catch(e){ showToast('Could not add source: '+e.message,'err'); }
+      finally{ setSpinner(false); }
+    }
+    nameInp.addEventListener('blur',tryAddSource);
+    amtInp.addEventListener('blur',tryAddSource);
+  }
+
+  // Wire existing source field changes
   body.querySelectorAll('[data-src-field]').forEach(input=>{
     input.addEventListener('change',async ev=>{
       const row=parseInt(ev.target.dataset.srcRow);
@@ -1008,21 +1155,13 @@ function renderPockets(){
       if(!p) return;
       if(field==='amount'){
         const val=num(ev.target.value);
-        p.amount=val;
-        saveLocal(); renderPockets(); renderSummary();
-        if(accessToken){
-          try{ await writeSourceAmount(row,val); showToast('Budget updated in Sheet','success'); }
-          catch(e){ showToast('Local saved, sheet error','err'); }
-        }
+        p.amount=val; saveLocal(); renderPockets(); renderSummary();
+        if(accessToken){ try{ await writeSourceAmount(row,val); showToast('Budget updated','success'); }catch(e){ showToast('Sheet error','err'); } }
       } else if(field==='name'){
         const val=ev.target.value.trim();
-        if(!val){ showToast('Source name cannot be empty','err'); ev.target.value=p.name; return; }
-        p.name=val;
-        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
-        if(accessToken){
-          try{ await writeSourceName(row,val); showToast('Source name updated in Sheet','success'); }
-          catch(e){ showToast('Local saved, sheet error','err'); }
-        }
+        if(!val){ showToast('Name cannot be empty','err'); ev.target.value=p.name; return; }
+        p.name=val; saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+        if(accessToken){ try{ await writeSourceName(row,val); showToast('Name updated','success'); }catch(e){ showToast('Sheet error','err'); } }
       }
     });
   });
@@ -1033,25 +1172,21 @@ function renderPockets(){
       const id=btn.dataset.delSrcId;
       const p=state.pockets.find(x=>x.id===id);
       if(!p) return;
-      if(!confirm('Delete source "'+p.name+'"? This will clear its name and budget from Money Allocation.')) return;
+      if(!confirm('Delete source "'+p.name+'"? This will clear it from Money Allocation.')) return;
       setSpinner(true);
       try{
-        // Clear col B and col S for this row in Money Allocation
         await sheetsReq('POST','/values/'+encodeURIComponent("'Money Allocation'!B"+row)+':clear',{});
         await sheetsReq('POST','/values/'+encodeURIComponent("'Money Allocation'!S"+row)+':clear',{});
-        // Refresh sources
         const r=await loadSourcesFromSheet();
         state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
         saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
         showToast('Source deleted','success');
-      }catch(e){
-        showToast('Could not delete: '+e.message,'err');
-      }finally{
-        setSpinner(false);
-      }
+      }catch(e){ showToast('Could not delete: '+e.message,'err'); }
+      finally{ setSpinner(false); }
     });
   });
 }
+
 
 // ── RENDER ALL ────────────────────────────────────────────────────────────────
 function renderAll(){ buildPocketSelect(); renderSummary(); renderLedger(); renderPockets(); }
@@ -1074,56 +1209,263 @@ function showToast(msg,type){
   clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-// ── GOOGLE IDENTITY ───────────────────────────────────────────────────────────
-function initGoogleAuth(){
-  // Initialize token client for OAuth flow
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:CLIENT_ID,
-    scope:SCOPES,
-    callback:(resp)=>{
-      if(resp.error){ console.warn('Token error',resp.error); return; }
-      onTokenReceived(resp.access_token, resp.expires_in);
-    },
-  });
+// ── PLANNER ───────────────────────────────────────────────────────────────────
+let plannerItems = [];      // current plan's items
+let currentPlanName = '';   // e.g. "Brother Week"
+let currentPlanTab = '';    // e.g. "Brother Week Plan"
+const PLAN_TEMPLATE = 'Plan Template';
 
-  // Initialize One Tap
-  google.accounts.id.initialize({
-    client_id:CLIENT_ID,
-    callback:onOneTapCredential,
-    auto_select:true,
-    cancel_on_tap_outside:false,
-  });
-  google.accounts.id.prompt(); // show One Tap bubble if session available
+function planTabName(name){ return name.trim()+' Plan'; }
 
-  // Try silent restore from stored token
-  const saved=loadToken();
-  if(saved){
-    // Validate quickly
-    fetch('https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+'?fields=spreadsheetId',{
-      headers:{'Authorization':'Bearer '+saved}
-    }).then(r=>{
-      if(r.ok){
-        accessToken=saved;
-        // Schedule refresh before expiry
-        const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
-        const msLeft=stored.exp?stored.exp-Date.now():0;
-        if(msLeft>60000){
-          silentRefreshTimer=setTimeout(()=>tokenClient.requestAccessToken({prompt:''}),msLeft-60000);
-        }
-        updateAuthUI(true);
-      } else {
-        clearToken();
-        // Don't force prompt — One Tap will handle it
-      }
-    }).catch(()=>clearToken());
-  }
+async function loadPlanNames(){
+  const names = await getSheetNames();
+  return names.filter(n=>n.endsWith(' Plan'));
 }
+
+async function loadPlanItems(tabName){
+  try{
+    const range=encodeURIComponent("'"+tabName+"'!A4:B200");
+    const data=await sheetsReq('GET','/values/'+range);
+    return (data.values||[])
+      .filter(r=>r&&(r[0]||r[1]))
+      .map(r=>({id:uid(),desc:r[0]||'',amount:num(r[1])}));
+  }catch(e){ return []; }
+}
+
+async function rewritePlanItems(tabName){
+  await sheetsReq('POST','/values/'+encodeURIComponent("'"+tabName+"'!A4:B200")+':clear',{});
+  if(!plannerItems.length) return;
+  const filled=plannerItems.filter(i=>i.desc||i.amount);
+  if(!filled.length) return;
+  await sheetsReq('PUT','/values/'+encodeURIComponent("'"+tabName+"'!A4:B")+'?valueInputOption=USER_ENTERED',{
+    range:"'"+tabName+"'!A4:B",
+    values:filled.map(i=>[i.desc,i.amount])
+  });
+}
+
+async function createPlanTab(planName){
+  const tabName=planTabName(planName);
+  const data=await sheetsReq('GET','?fields=sheets.properties');
+  const sheets=data.sheets||[];
+  const tmpl=sheets.find(s=>s.properties.title===PLAN_TEMPLATE);
+  if(!tmpl) throw new Error('Template tab "'+PLAN_TEMPLATE+'" not found.');
+  await sheetsReq('POST',':batchUpdate',{requests:[{duplicateSheet:{
+    sourceSheetId:tmpl.properties.sheetId,
+    insertSheetIndex:sheets.length,
+    newSheetName:tabName
+  }}]});
+  // Write header row
+  await sheetsReq('PUT','/values/'+encodeURIComponent("'"+tabName+"'!A1:B1")+'?valueInputOption=USER_ENTERED',{
+    range:"'"+tabName+"'!A1:B1",
+    values:[['Description','Amount']]
+  });
+  return tabName;
+}
+
+function getPlanTotalBudget(){
+  return state.pockets.reduce((s,p)=>s+num(p.amount),0);
+}
+
+function renderPlanner(){
+  const tbody=document.getElementById('planBody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+
+  const filled=plannerItems.filter(i=>i.desc||i.amount);
+  const planTotal=filled.reduce((s,i)=>s+num(i.amount),0);
+  const budget=getPlanTotalBudget();
+  const remaining=budget-planTotal;
+
+  // Update balance card
+  const balCard=document.getElementById('planBalanceCard');
+  const itemsCard=document.getElementById('planItemsCard');
+  const hasPlan=!!currentPlanTab;
+  balCard.style.display=hasPlan?'':'none';
+  itemsCard.style.display=hasPlan?'':'none';
+
+  if(hasPlan){
+    const el=document.getElementById('planTotal');
+    el.textContent=money(planTotal);
+    el.className='amount'+(planTotal>budget?' over':'');
+    document.getElementById('planMeta').textContent='Budget '+money(budget)+' · Remaining '+money(remaining);
+  }
+
+  // Render all filled rows + one blank row at end
+  const rowsToRender=[...plannerItems];
+  // Ensure there's always one trailing blank
+  const lastItem=rowsToRender[rowsToRender.length-1];
+  if(!lastItem||lastItem.desc||lastItem.amount){
+    rowsToRender.push({id:uid(),desc:'',amount:''});
+    plannerItems=rowsToRender;
+  }
+
+  rowsToRender.forEach((item,idx)=>{
+    const isFilled=item.desc||item.amount;
+    const tr=document.createElement('tr');
+    tr.style.cssText='';
+    tr.innerHTML=
+      '<td style="padding:0;"><input value="'+esc(item.desc)+'" data-plan-id="'+item.id+'" data-plan-field="desc" placeholder="Description…" style="border:none;background:transparent;font-size:14px;font-family:var(--sans);color:var(--ink);width:100%;padding:11px 12px;outline:none;"/></td>'+
+      '<td style="padding:0;text-align:right;"><input type="number" step="0.01" value="'+(item.amount||'')+'" data-plan-id="'+item.id+'" data-plan-field="amount" placeholder="0.00" style="border:none;background:transparent;font-size:14px;font-family:var(--mono);color:var(--ink);width:90px;padding:11px 10px;outline:none;text-align:right;"/></td>'+
+      '<td style="padding:0 8px 0 4px;text-align:center;">'+(isFilled?'<button class="del-btn" data-del-plan="'+item.id+'">×</button>':'')+'</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Wire inputs
+  tbody.querySelectorAll('[data-plan-id]').forEach(input=>{
+    input.addEventListener('input',ev=>{
+      const id=ev.target.dataset.planId;
+      const field=ev.target.dataset.planField;
+      const item=plannerItems.find(x=>x.id===id);
+      if(!item) return;
+      item[field]=field==='amount'?num(ev.target.value):ev.target.value;
+      // Ensure trailing blank exists
+      const last=plannerItems[plannerItems.length-1];
+      if(last.desc||last.amount) plannerItems.push({id:uid(),desc:'',amount:''});
+      // Re-render total only
+      const filled2=plannerItems.filter(i=>i.desc||i.amount);
+      const t=filled2.reduce((s,i)=>s+num(i.amount),0);
+      const budget2=getPlanTotalBudget();
+      if(document.getElementById('planTotal')){
+        document.getElementById('planTotal').textContent=money(t);
+        document.getElementById('planTotal').className='amount'+(t>budget2?' over':'');
+        document.getElementById('planMeta').textContent='Budget '+money(budget2)+' · Remaining '+money(budget2-t);
+      }
+    });
+    input.addEventListener('change',async ev=>{
+      if(!accessToken||!currentPlanTab) return;
+      try{ await rewritePlanItems(currentPlanTab); }
+      catch(e){ showToast('Plan save error','err'); }
+    });
+  });
+
+  // Wire delete buttons
+  tbody.querySelectorAll('[data-del-plan]').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      plannerItems=plannerItems.filter(x=>x.id!==btn.dataset.delPlan);
+      renderPlanner();
+      if(accessToken&&currentPlanTab){
+        try{ await rewritePlanItems(currentPlanTab); showToast('Deleted','success'); }
+        catch(e){ showToast('Delete error','err'); }
+      }
+    });
+  });
+}
+
+async function loadPlannerPanel(){
+  if(!accessToken) return;
+  setSpinner(true);
+  try{
+    const planNames=await loadPlanNames();
+    const sel=document.getElementById('planSelect');
+    sel.innerHTML='<option value="">— select a plan —</option>';
+    planNames.forEach(n=>{
+      const opt=document.createElement('option');
+      opt.value=n; opt.textContent=n.replace(/ Plan$/,'');
+      sel.appendChild(opt);
+    });
+    if(currentPlanTab&&planNames.includes(currentPlanTab)){
+      sel.value=currentPlanTab;
+    }
+  }catch(e){ showToast('Could not load plans','err'); }
+  finally{ setSpinner(false); }
+}
+
+document.getElementById('planSelect').addEventListener('change',async function(){
+  const tabName=this.value;
+  if(!tabName){ currentPlanTab=''; currentPlanName=''; plannerItems=[]; renderPlanner(); return; }
+  currentPlanTab=tabName;
+  currentPlanName=tabName.replace(/ Plan$/,'');
+  setSpinner(true);
+  try{
+    plannerItems=await loadPlanItems(tabName);
+    renderPlanner();
+  }catch(e){ showToast('Could not load plan','err'); }
+  finally{ setSpinner(false); }
+});
+
+document.getElementById('newPlanBtn').addEventListener('click',async()=>{
+  const name=prompt('Plan name (e.g. Brother Week):');
+  if(!name||!name.trim()) return;
+  const trimmed=name.trim();
+  const tabName=planTabName(trimmed);
+  setSpinner(true);
+  try{
+    const names=await getSheetNames();
+    if(names.includes(tabName)){
+      showToast('"'+tabName+'" already exists','err');
+      setSpinner(false); return;
+    }
+    await createPlanTab(trimmed);
+    currentPlanName=trimmed; currentPlanTab=tabName; plannerItems=[];
+    await loadPlannerPanel();
+    document.getElementById('planSelect').value=tabName;
+    renderPlanner();
+    showToast('Plan "'+trimmed+'" created','success');
+  }catch(e){ showToast('Could not create plan: '+e.message,'err'); }
+  finally{ setSpinner(false); }
+});
+
+// ── GOOGLE IDENTITY ───────────────────────────────────────────────────────────
+
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 loadLocal();
 buildWeekOptions();
 buildPocketSelect();
 renderAll();
+
+async function initGoogleAuth(){
+  // One Tap for Android/desktop
+  if(window.google&&google.accounts&&google.accounts.id){
+    google.accounts.id.initialize({
+      client_id:CLIENT_ID, callback:onOneTapCredential,
+      auto_select:true, cancel_on_tap_outside:false,
+    });
+    google.accounts.id.prompt();
+  }
+
+  // Check for PKCE redirect code in URL
+  const params=new URLSearchParams(window.location.search);
+  const code=params.get('code');
+  if(code){
+    window.history.replaceState({},'',window.location.pathname);
+    try{
+      const data=await exchangeCode(code);
+      sessionStorage.removeItem('pkce_v');
+      onTokenReceived(data.access_token, data.refresh_token, data.expires_in||3600);
+    }catch(e){
+      showToast('Sign-in failed: '+e.message,'err');
+    }
+    return;
+  }
+
+  // Try stored access token
+  const saved=loadToken();
+  if(saved){
+    accessToken=saved;
+    const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
+    const msLeft=stored.exp?stored.exp-Date.now():0;
+    if(msLeft>60000){
+      scheduleRefresh(msLeft/1000);
+      updateAuthUI(true);
+      return;
+    }
+    accessToken=null; clearToken();
+  }
+
+  // Try silent refresh via stored refresh token
+  const rt=loadRefreshToken();
+  if(rt){
+    try{
+      const data=await doTokenRefresh();
+      onTokenReceived(data.access_token, data.refresh_token||rt, data.expires_in||3600);
+      return;
+    }catch(e){
+      clearRefreshToken();
+    }
+  }
+  // Nothing worked — show sign-in screen
+}
 </script>
 <script src="https://accounts.google.com/gsi/client" onload="initGoogleAuth()" async defer></script>
 </body>
