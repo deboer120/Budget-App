@@ -1351,6 +1351,8 @@ buildPocketSelect();
 renderAll();
 
 function initGoogleAuth(){
+  if(window._gisInited) return;
+  window._gisInited=true;
   // GIS loaded — update hint and enable button
   const hint=document.getElementById('signinHint');
   if(hint) hint.textContent='Tap to sign in with your Google account.';
@@ -1406,6 +1408,30 @@ function initGoogleAuth(){
   // Sign-in screen is already showing (default state)
 }
 </script>
-<script src="https://accounts.google.com/gsi/client" onload="initGoogleAuth()" onerror="document.getElementById('signinHint').textContent='Could not load Google Sign-in. Check your connection and refresh.'" async defer></script>
+<script>
+// Load GIS and init — handles cached scripts where onload may not fire
+(function(){
+  var s=document.createElement('script');
+  s.src='https://accounts.google.com/gsi/client';
+  s.async=true;
+  s.defer=true;
+  s.onload=function(){ initGoogleAuth(); };
+  s.onerror=function(){
+    var h=document.getElementById('signinHint');
+    if(h) h.textContent='Could not load Google Sign-in. Check your connection and refresh.';
+  };
+  document.head.appendChild(s);
+  // Fallback poll — if script loaded from cache onload may not fire
+  var attempts=0;
+  var poll=setInterval(function(){
+    attempts++;
+    if(window.google&&google.accounts&&google.accounts.oauth2){
+      clearInterval(poll);
+      if(!window._gisInited){ window._gisInited=true; initGoogleAuth(); }
+    }
+    if(attempts>20) clearInterval(poll); // give up after 10s
+  },500);
+})();
+</script>
 </body>
 </html>
