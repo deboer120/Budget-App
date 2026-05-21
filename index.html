@@ -1391,54 +1391,41 @@ function initGoogleAuth(){
       updateAuthUI(true);
       return;
     }
-    // Token expired — try silent refresh (no UI shown)
+    // Token expired — clear it, show sign-in screen
     clearToken();
-    tokenClient.requestAccessToken({prompt:''});
+    // Don't auto-prompt — let user tap sign in
     return;
   }
-
-  // No stored token — show sign-in screen and One Tap bubble
+  // No stored token — show sign-in screen (already visible by default)
+  // One Tap will show if available
   if(google.accounts&&google.accounts.id){
     google.accounts.id.initialize({
       client_id:CLIENT_ID,
       callback:onOneTapCredential,
-      auto_select:true,
-      cancel_on_tap_outside:false,
+      auto_select:false,
+      cancel_on_tap_outside:true,
     });
     google.accounts.id.prompt();
   }
-  // Sign-in screen is already showing (default state)
 }
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-// Load GIS and init — handles cached scripts where onload may not fire
+// Wait for GIS to be ready then init
 (function(){
-  var s=document.createElement('script');
-  s.src='https://accounts.google.com/gsi/client';
-  s.async=true;
-  s.defer=true;
-  s.onload=function(){ initGoogleAuth(); };
-  s.onerror=function(){
-    var h=document.getElementById('signinHint');
-    if(h) h.textContent='Could not load Google Sign-in. Check your connection and refresh.';
-  };
-  document.head.appendChild(s);
-  // Fallback poll — if script loaded from cache onload may not fire
   var attempts=0;
   var poll=setInterval(function(){
     attempts++;
-    if(window.google&&google.accounts&&google.accounts.oauth2){
+    if(window.google&&window.google.accounts&&window.google.accounts.oauth2){
       clearInterval(poll);
-      if(!window._gisInited){ window._gisInited=true; initGoogleAuth(); }
+      initGoogleAuth();
     }
-    if(attempts>20){
+    if(attempts>40){
       clearInterval(poll);
       var h=document.getElementById('signinHint');
-      if(h) h.textContent='Google Sign-in could not load. Try refreshing or check your connection.';
-      var btn=document.querySelector('.big-btn');
-      if(btn) btn.style.opacity='0.4';
+      if(h) h.textContent='Could not connect to Google. Please refresh the page.';
     }
-  },500);
+  },250);
 })();
 </script>
 </body>
