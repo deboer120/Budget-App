@@ -557,117 +557,51 @@ function switchTo(name){
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
-// ── AUTH — PKCE + refresh tokens (works on iOS, no cookies needed) ────────────
-const REDIRECT_URI    = 'https://deboer120.github.io/Budget-App/';
-const AUTH_ENDPOINT   = 'https://accounts.google.com/o/oauth2/v2/auth';
-const TOKEN_ENDPOINT  = 'https://oauth2.googleapis.com/token';
-const REFRESH_KEY     = 'budget_refresh_v1';
+// ── AUTH — GIS token client + localStorage persistence (no client secret needed) ─
+// Uses Google Identity Services implicit token flow.
+// Token stored in localStorage (not cookies) so iOS can't clear it.
+// Silent refresh via GIS prompt:'' when token nears expiry.
 
-function saveRefreshToken(t){ try{ localStorage.setItem(REFRESH_KEY,t); }catch(e){} }
-function loadRefreshToken(){ try{ return localStorage.getItem(REFRESH_KEY)||null; }catch(e){ return null; } }
-function clearRefreshToken(){ try{ localStorage.removeItem(REFRESH_KEY); }catch(e){} }
+let tokenClient = null;
 
-async function generateVerifier(){
-  const arr=new Uint8Array(64); crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-async function generateChallenge(v){
-  const data=new TextEncoder().encode(v);
-  const digest=await crypto.subtle.digest('SHA-256',data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
+function saveRefreshToken(t){ /* not used in this flow */ }
+function loadRefreshToken(){ return null; }
+function clearRefreshToken(){ /* not used */ }
 
-async function handleAuth(){
+function handleAuth(){
   if(accessToken){ if(confirm('Sign out?')){ signOut(); } return; }
-  const verifier=await generateVerifier();
-  const challenge=await generateChallenge(verifier);
-  sessionStorage.setItem('pkce_v',verifier);
-  const params=new URLSearchParams({
-    client_id:CLIENT_ID, redirect_uri:REDIRECT_URI,
-    response_type:'code', scope:SCOPES,
-    code_challenge:challenge, code_challenge_method:'S256',
-    access_type:'offline', prompt:'consent',
-  });
-  window.location.href=AUTH_ENDPOINT+'?'+params.toString();
+  tokenClient.requestAccessToken({prompt:'consent'});
 }
 
 function signOut(){
-  accessToken=null; clearToken(); clearRefreshToken();
-  sessionStorage.removeItem('pkce_v');
+  accessToken=null; clearToken();
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
+  if(window.google&&google.accounts&&google.accounts.oauth2){
+    google.accounts.oauth2.revoke(loadToken()&&JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}').token||'',()=>{});
+  }
   updateAuthUI(false);
-}
-
-async function exchangeCode(code){
-  const verifier=sessionStorage.getItem('pkce_v');
-  if(!verifier) throw new Error('No PKCE verifier — try signing in again');
-  const body=new URLSearchParams({
-    client_id:CLIENT_ID, code, code_verifier:verifier,
-    grant_type:'authorization_code', redirect_uri:REDIRECT_URI,
-  });
-  const resp=await fetch(TOKEN_ENDPOINT,{
-    method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body
-  });
-  if(!resp.ok){
-    const errData=await resp.json().catch(()=>({}));
-    const msg='Token error '+resp.status+': '+(errData.error||'unknown')+' — '+(errData.error_description||'no detail');
-    throw new Error(msg);
-  }
-  return resp.json();
-}
-
-async function doTokenRefresh(){
-  const rt=loadRefreshToken();
-  if(!rt) throw new Error('No refresh token');
-  const resp=await fetch(TOKEN_ENDPOINT,{
-    method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:new URLSearchParams({
-      client_id:CLIENT_ID, refresh_token:rt,
-      grant_type:'refresh_token',
-    })
-  });
-  if(!resp.ok){
-    const errData=await resp.json().catch(()=>({}));
-    throw new Error('Refresh error '+resp.status+': '+(errData.error||'unknown')+' — '+(errData.error_description||''));
-  }
-  return resp.json();
 }
 
 function scheduleRefresh(expiresIn){
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
   const delay=Math.max(((expiresIn||3600)-120)*1000, 10000);
-  silentRefreshTimer=setTimeout(async()=>{
-    try{
-      const data=await doTokenRefresh();
-      accessToken=data.access_token;
-      saveToken(data.access_token, data.expires_in||3600);
-      scheduleRefresh(data.expires_in||3600);
-    }catch(e){
-      accessToken=null; clearToken();
-      updateAuthUI(false);
-    }
-  },delay);
+  silentRefreshTimer=setTimeout(()=>{
+    // Silent refresh — no prompt, user won't see anything
+    tokenClient.requestAccessToken({prompt:''});
+  }, delay);
 }
 
-function onTokenReceived(accessTok, refreshTok, expiresIn){
+function onTokenReceived(accessTok, expiresIn){
   accessToken=accessTok;
   saveToken(accessTok, expiresIn||3600);
-  if(refreshTok) saveRefreshToken(refreshTok);
   scheduleRefresh(expiresIn||3600);
   updateAuthUI(true);
 }
 
-// One Tap callback — still works on Android/desktop as a fast path
+// One Tap credential callback
 function onOneTapCredential(response){
-  const rt=loadRefreshToken();
-  if(rt){
-    doTokenRefresh().then(data=>{
-      onTokenReceived(data.access_token, data.refresh_token||rt, data.expires_in);
-    }).catch(()=>{});
-  }
+  // One Tap gives id_token — trigger silent token request
+  if(tokenClient) tokenClient.requestAccessToken({prompt:''});
 }
 
 function updateAuthUI(signedIn){
@@ -697,15 +631,18 @@ async function sheetsReq(method,path,body){
   if(body) opts.body=JSON.stringify(body);
   const res=await fetch(url,opts);
   if(res.status===401){
-    // Token expired — try refresh token silently
+    // Token expired — silent refresh via GIS
     accessToken=null; clearToken();
-    try{
-      const data=await doTokenRefresh();
-      onTokenReceived(data.access_token, data.refresh_token||loadRefreshToken(), data.expires_in);
-      return sheetsReq(method,path,body); // retry once
-    }catch(e){
-      signOut(); throw new Error('Session expired — please sign in again');
-    }
+    return new Promise((resolve,reject)=>{
+      tokenClient.requestAccessToken({
+        prompt:'',
+        callback:(resp)=>{
+          if(resp.error){ signOut(); reject(new Error('Session expired — please sign in again')); return; }
+          onTokenReceived(resp.access_token, resp.expires_in);
+          sheetsReq(method,path,body).then(resolve).catch(reject);
+        }
+      });
+    });
   }
   if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||'Sheets error '+res.status); }
   return res.status===204?{}:res.json();
@@ -1417,70 +1354,49 @@ document.getElementById('newPlanBtn').addEventListener('click',async()=>{
 
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-// Show any stored error from previous redirect attempt
-const _storedErr=localStorage.getItem('budget_last_err');
-if(_storedErr){ setTimeout(()=>{ showToast(_storedErr,'err'); localStorage.removeItem('budget_last_err'); },500); }
 loadLocal();
 buildWeekOptions();
 buildPocketSelect();
 renderAll();
 
-async function initGoogleAuth(){
-  // One Tap for Android/desktop
-  if(window.google&&google.accounts&&google.accounts.id){
+function initGoogleAuth(){
+  // Initialize GIS token client
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,
+    scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error){ console.warn('Token error:',resp.error); showToast('Sign-in error: '+resp.error,'err'); return; }
+      onTokenReceived(resp.access_token, resp.expires_in);
+    },
+  });
+
+  // One Tap for fast sign-in on Android/desktop
+  if(google.accounts&&google.accounts.id){
     google.accounts.id.initialize({
-      client_id:CLIENT_ID, callback:onOneTapCredential,
-      auto_select:true, cancel_on_tap_outside:false,
+      client_id:CLIENT_ID,
+      callback:onOneTapCredential,
+      auto_select:true,
+      cancel_on_tap_outside:false,
     });
     google.accounts.id.prompt();
   }
 
-  // Check for PKCE redirect code in URL
-  const params=new URLSearchParams(window.location.search);
-  const code=params.get('code');
-  if(code){
-    window.history.replaceState({},'',window.location.pathname);
-    try{
-      const data=await exchangeCode(code);
-      sessionStorage.removeItem('pkce_v');
-      onTokenReceived(data.access_token, data.refresh_token, data.expires_in||3600);
-    }catch(e){
-      // Show full error for debugging — remove once working
-      const errMsg=e.message||'Unknown error';
-      showToast(errMsg,'err');
-      // Also store in localStorage so it survives any redirect
-      localStorage.setItem('budget_last_err',errMsg);
-      console.error('PKCE exchange error:',e);
-    }
-    return;
-  }
-
-  // Try stored access token
+  // Try stored access token first
   const saved=loadToken();
   if(saved){
-    accessToken=saved;
     const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
     const msLeft=stored.exp?stored.exp-Date.now():0;
-    if(msLeft>60000){
+    if(msLeft>120000){
+      // Token still valid — use it
+      accessToken=saved;
       scheduleRefresh(msLeft/1000);
       updateAuthUI(true);
       return;
     }
-    accessToken=null; clearToken();
+    // Token expired or nearly expired — try silent refresh
+    clearToken();
+    tokenClient.requestAccessToken({prompt:''});
   }
-
-  // Try silent refresh via stored refresh token
-  const rt=loadRefreshToken();
-  if(rt){
-    try{
-      const data=await doTokenRefresh();
-      onTokenReceived(data.access_token, data.refresh_token||rt, data.expires_in||3600);
-      return;
-    }catch(e){
-      clearRefreshToken();
-    }
-  }
-  // Nothing worked — show sign-in screen
 }
 </script>
 <script src="https://accounts.google.com/gsi/client" onload="initGoogleAuth()" async defer></script>
