@@ -456,7 +456,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────────────────
+// -- CONFIG --------------------------------------------------------------------
 const CLIENT_ID     = '692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com';
 const SHEET_ID      = '1DIARGC8hijfimrmYtPlqJlHbjxhjY98WlHpbg9pohXQ';
 const SCOPES        = 'https://www.googleapis.com/auth/spreadsheets';
@@ -466,16 +466,16 @@ const TEMPLATE_TAB  = 'Week Template';
 // Swipes sources start at row 6 in Money Allocation
 // App dynamically scans until it finds a SUM formula row or hits MAX_SOURCE_ROW
 const SOURCE_START_ROW = 6;
-const MAX_SOURCE_ROW   = 40; // safety cap — scan won't go beyond this
+const MAX_SOURCE_ROW   = 40; // safety cap - scan will not go beyond this
 
-// ── STATE ─────────────────────────────────────────────────────────────────────
+// -- STATE ---------------------------------------------------------------------
 let state = { entries:[], pockets:[], totalSlots:0, filledSlots:0 };
 let accessToken  = null;
 let currentTabName = '';
 let sheetLoaded  = false;
 let silentRefreshTimer = null;
 
-// ── PERSIST ───────────────────────────────────────────────────────────────────
+// -- PERSIST -------------------------------------------------------------------
 function loadLocal(){
   try{ const r=localStorage.getItem(STORE); if(r) state=JSON.parse(r); }catch(e){}
 }
@@ -495,11 +495,11 @@ function loadToken(){
 }
 function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+// -- HELPERS -------------------------------------------------------------------
 function money(n){ return Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD'}); }
 function num(v){ const p=parseFloat(String(v||'').replace(/[^0-9.\-]/g,'')); return isFinite(p)?p:0; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ var s2=String(s||''); s2=s2.split('&').join('&amp;'); s2=s2.split('<').join('&lt;'); s2=s2.split('>').join('&gt;'); s2=s2.split('"').join('&quot;'); return s2; }
 
 function getMondayOf(date){
   const d=new Date(date);
@@ -528,12 +528,12 @@ function buildWeekOptions(){
   sel.value=currentTabNameFn();
 }
 
-// ── HEADER DATE ───────────────────────────────────────────────────────────────
+// -- HEADER DATE ---------------------------------------------------------------
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const _now=new Date();
 document.getElementById('headerDate').textContent=MONTHS[_now.getMonth()]+' '+_now.getDate()+', '+_now.getFullYear();
 
-// ── NAV ───────────────────────────────────────────────────────────────────────
+// -- NAV -----------------------------------------------------------------------
 const panels=document.querySelectorAll('.panel');
 const navBtns=document.querySelectorAll('.nav-btn');
 
@@ -561,9 +561,9 @@ function switchTo(name){
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
-// ── AUTH — GIS token client + localStorage persistence (no client secret needed) ─
+// -- AUTH — GIS token client + localStorage persistence (no client secret needed) -
 // Uses Google Identity Services implicit token flow.
-// Token stored in localStorage (not cookies) so iOS can't clear it.
+// Token stored in localStorage (not cookies) so iOS cannot clear it.
 // Silent refresh via GIS prompt:'' when token nears expiry.
 
 let tokenClient = null;
@@ -606,7 +606,7 @@ function scheduleRefresh(expiresIn){
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
   const delay=Math.max(((expiresIn||3600)-120)*1000, 10000);
   silentRefreshTimer=setTimeout(()=>{
-    // Silent refresh — no prompt, user won't see anything
+    // Silent refresh — no prompt, user will not see anything
     tokenClient.requestAccessToken({prompt:''});
   }, delay);
 }
@@ -644,7 +644,7 @@ function updateWeekChip(){
   chip.classList.add('live');
 }
 
-// ── SHEETS API ────────────────────────────────────────────────────────────────
+// -- SHEETS API ----------------------------------------------------------------
 async function sheetsReq(method,path,body){
   const url='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET_ID+path;
   const opts={method,headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'}};
@@ -743,7 +743,7 @@ async function loadSourcesFromSheet(){
       const amount=num(rows[i][17]); // col S is index 17 in B:S slice
       pockets.push({id:'src'+absRow,row:absRow,name:String(bVal).trim(),amount});
     }
-    // Empty rows still count as slots — don't break early
+    // Empty rows still count as slots — do not break early
   }
 
   return {pockets, totalSlots, filledSlots:pockets.length};
@@ -792,7 +792,7 @@ async function rewriteEntries(tab){
   });
 }
 
-// ── FULL REFRESH ──────────────────────────────────────────────────────────────
+// -- FULL REFRESH --------------------------------------------------------------
 async function doFullRefresh(){
   if(!accessToken) return;
   if(!canRefresh()) return;
@@ -862,7 +862,7 @@ async function refreshSources(){
 function setSpinner(on){ document.getElementById('refreshBtn').classList.toggle('spinning',on); }
 document.getElementById('refreshBtn').addEventListener('click',()=>doFullRefresh());
 
-// ── WEEK SELECT ───────────────────────────────────────────────────────────────
+// -- WEEK SELECT ---------------------------------------------------------------
 document.getElementById('weekSelect').addEventListener('change',async function(){
   currentTabName=this.value;
   updateWeekChip();
@@ -882,11 +882,11 @@ document.getElementById('weekSelect').addEventListener('change',async function()
   finally{ setSpinner(false); }
 });
 
-// ── POCKET SELECT ─────────────────────────────────────────────────────────────
+// -- POCKET SELECT -------------------------------------------------------------
 function buildPocketSelect(){
   const sel=document.getElementById('pocket');
   const cur=sel.value;
-  sel.innerHTML='<option value="">— unassigned —</option>';
+  sel.innerHTML='<option value="">— unassigned —<\/option>';
   state.pockets.forEach(p=>{
     const o=document.createElement('option');
     o.value=p.name; o.textContent=p.name; sel.appendChild(o);
@@ -898,7 +898,7 @@ document.getElementById('account').addEventListener('change',function(){
   document.getElementById('sourceFieldWrap').style.display=this.value==='Swipes'?'block':'none';
 });
 
-// ── SAVE EXPENSE ──────────────────────────────────────────────────────────────
+// -- SAVE EXPENSE --------------------------------------------------------------
 async function doSave(goTo){
   const item=document.getElementById('item').value.trim();
   const cost=num(document.getElementById('cost').value);
@@ -911,7 +911,7 @@ async function doSave(goTo){
   const btnR=document.getElementById('saveBtnReview');
   const btnA=document.getElementById('saveBtnAnother');
   btnR.disabled=true; btnA.disabled=true;
-  btnR.innerHTML='<span class="spinner"></span> Saving…';
+  btnR.innerHTML='<span class="spinner"><\/span> Saving…';
   try{
     if(accessToken){
       if(tabName!==currentTabNameFn()){
@@ -937,7 +937,7 @@ async function doSave(goTo){
 document.getElementById('saveBtnReview').addEventListener('click',()=>doSave('summary'));
 document.getElementById('saveBtnAnother').addEventListener('click',()=>doSave('add'));
 
-// ── SUMMARY ───────────────────────────────────────────────────────────────────
+// -- SUMMARY -------------------------------------------------------------------
 function getSpentByPocket(){
   const m={};
   state.entries.forEach(e=>{
@@ -964,12 +964,12 @@ function renderSummary(){
     const cls=rem<0?'badge-bad':pct>0.75?'badge-warn':'badge-good';
     const div=document.createElement('div');
     div.className='pocket-row';
-    div.innerHTML='<div><div class="name">'+esc(p.name)+'</div><div class="sub">Budget '+money(b)+' · Spent '+money(s)+'</div></div><div class="badge '+cls+'">'+money(rem)+'</div>';
+    div.innerHTML='<div><div class="name">'+esc(p.name)+'<\/div><div class="sub">Budget '+money(b)+' · Spent '+money(s)+'<\/div><\/div><div class="badge '+cls+'">'+money(rem)+'<\/div>';
     rows.appendChild(div);
   });
 }
 
-// ── LEDGER ────────────────────────────────────────────────────────────────────
+// -- LEDGER --------------------------------------------------------------------
 function renderLedger(){
   const body=document.getElementById('ledgerBody');
   body.innerHTML='';
@@ -978,7 +978,7 @@ function renderLedger(){
   if(!last||last.item||last.cost){
     state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
   }
-  const pocketOpts='<option value="">—</option>'+state.pockets.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>').join('');
+  const pocketOpts='<option value="">—<\/option>'+state.pockets.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'<\/option>').join('');
   const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 0;outline:none;';
   const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
 
@@ -987,11 +987,11 @@ function renderLedger(){
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td style="padding:0 8px;"><input value="'+esc(e.date)+'" data-id="'+e.id+'" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/></td>'+
-      '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/></td>'+
-      '<td style="padding:0 4px;"><select data-id="'+e.id+'" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'</select></td>'+
-      '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/></td>'+
-      '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7</button>':'')+'</td>';
+      '<td style="padding:0 8px;"><input value="'+esc(e.date)+'" data-id="'+e.id+'" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/><\/td>'+
+      '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/><\/td>'+
+      '<td style="padding:0 4px;"><select data-id="'+e.id+'" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
+      '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
+      '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7<\/button>':'')+'<\/td>';
     body.appendChild(tr);
     tr.querySelector('[data-f="pocket"]').value=e.pocket||'';
   });
@@ -1043,7 +1043,7 @@ document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
 });
 
 
-// ── SOURCES ───────────────────────────────────────────────────────────────────
+// -- SOURCES -------------------------------------------------------------------
 
 function renderPockets(){
   const spent=getSpentByPocket();
@@ -1063,11 +1063,11 @@ function renderPockets(){
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td style="padding:0;"><input value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="name" style="'+iStyle+'"/></td>'+
-      '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="amount" style="'+monoStyle+'"/></td>'+
-      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:var(--ink2);">'+money(s)+'</td>'+
-      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:'+color+'">'+money(rem)+'</td>'+
-      '<td style="padding:0 6px;text-align:center;"><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'">×</button></td>';
+      '<td style="padding:0;"><input value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="name" style="'+iStyle+'"/><\/td>'+
+      '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" data-src-field="amount" style="'+monoStyle+'"/><\/td>'+
+      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:var(--ink2);">'+money(s)+'<\/td>'+
+      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:'+color+'">'+money(rem)+'<\/td>'+
+      '<td style="padding:0 6px;text-align:center;"><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'">×<\/button><\/td>';
     body.appendChild(tr);
   });
 
@@ -1075,12 +1075,43 @@ function renderPockets(){
   if(avail>0){
     const blankTr=document.createElement('tr');
     blankTr.innerHTML=
-      '<td style="padding:0;"><input id="newSrcName" placeholder="New source…" style="'+iStyle+'color:var(--ink3);"/></td>'+
-      '<td style="padding:0;"><input id="newSrcAmt" type="text" inputmode="decimal" placeholder="0.00" style="'+monoStyle+'color:var(--ink3);"/></td>'+
-      '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—</td>'+
-      '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—</td>'+
-      '<td></td>';
+      '<td style="padding:0;"><input id="newSrcName" placeholder="New source…" style="'+iStyle+'color:var(--ink3);"/><\/td>'+
+      '<td style="padding:0;"><input id="newSrcAmt" type="text" inputmode="decimal" placeholder="0.00" style="'+monoStyle+'color:var(--ink3);"/><\/td>'+
+      '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—<\/td>'+
+      '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—<\/td>'+
+      '<td><\/td>';
     body.appendChild(blankTr);
+
+    // Wire blank row save on blur
+    const nameInp=blankTr.querySelector('#newSrcName');
+    const amtInp=blankTr.querySelector('#newSrcAmt');
+    async function tryAddSource(){
+      const name=nameInp.value.trim();
+      const amount=num(amtInp.value);
+      if(!name) return;
+      if(state.pockets.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+        showToast('Source "'+name+'" already exists','err'); nameInp.value=''; return;
+      }
+      const nextRow=SOURCE_START_ROW+state.filledSlots;
+      setSpinner(true);
+      try{
+        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow)+'?valueInputOption=USER_ENTERED',{
+          range:"'Money Allocation'!B"+nextRow,values:[[name]]
+        });
+        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!S"+nextRow)+'?valueInputOption=USER_ENTERED',{
+          range:"'Money Allocation'!S"+nextRow,values:[[amount||0]]
+        });
+        const r=await loadSourcesFromSheet();
+        state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
+        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+        showToast('Source "'+name+'" added','success');
+      }catch(e){ showToast('Could not add source: '+e.message,'err'); }
+      finally{ setSpinner(false); }
+    }
+    nameInp.addEventListener('blur',tryAddSource);
+    amtInp.addEventListener('blur',tryAddSource);
+  }
+
   // Wire existing source field changes
   body.querySelectorAll('[data-src-field]').forEach(input=>{
     input.addEventListener('change',async ev=>{
@@ -1124,20 +1155,20 @@ function renderPockets(){
 }
 
 
-// ── RENDER ALL ────────────────────────────────────────────────────────────────
+// -- RENDER ALL ----------------------------------------------------------------
 function renderAll(){ buildPocketSelect(); renderSummary(); renderLedger(); renderPockets(); }
 
-// ── BANNERS ───────────────────────────────────────────────────────────────────
-const SVG_INFO='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="12" x2="12" y2="16"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/></svg>';
-const SVG_WARN='<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>';
-const SVG_ERR='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+// -- BANNERS -------------------------------------------------------------------
+const SVG_INFO='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="12" x2="12" y2="16"/><circle cx="12" cy="8" r="0.5" fill="currentColor"/><\/svg>';
+const SVG_WARN='<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><\/svg>';
+const SVG_ERR='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/><\/svg>';
 function showBanner(id,type,msg){
   const icon={info:SVG_INFO,warn:SVG_WARN,error:SVG_ERR}[type]||SVG_INFO;
-  document.getElementById(id).innerHTML='<div class="status-banner '+type+'">'+icon+'<span>'+msg+'</span></div>';
+  document.getElementById(id).innerHTML='<div class="status-banner '+type+'">'+icon+'<span>'+msg+'<\/span><\/div>';
 }
 function clearBanner(id){ document.getElementById(id).innerHTML=''; }
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
+// -- TOAST ---------------------------------------------------------------------
 let _tt;
 function showToast(msg,type){
   const t=document.getElementById('toast');
@@ -1145,7 +1176,7 @@ function showToast(msg,type){
   clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-// ── PLANNER ───────────────────────────────────────────────────────────────────
+// -- PLANNER -------------------------------------------------------------------
 let plannerItems = [];      // current plan's items
 let currentPlanName = '';   // e.g. "Brother Week"
 let currentPlanTab = '';    // e.g. "Brother Week Plan"
@@ -1242,9 +1273,9 @@ function renderPlanner(){
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td style="padding:0;"><input value="'+esc(item.desc)+'" data-plan-id="'+item.id+'" data-plan-field="desc" placeholder="Description…" style="'+piStyle+'"/></td>'+
-      '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+(item.amount!==''&&item.amount!==undefined?item.amount:'')+'" data-plan-id="'+item.id+'" data-plan-field="amount" placeholder="0.00" style="'+pmStyle+'"/></td>'+
-      '<td style="padding:0 6px;text-align:center;">'+(isFilled?'<button class="del-btn" data-del-plan="'+item.id+'">×</button>':'')+'</td>';
+      '<td style="padding:0;"><input value="'+esc(item.desc)+'" data-plan-id="'+item.id+'" data-plan-field="desc" placeholder="Description…" style="'+piStyle+'"/><\/td>'+
+      '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+(item.amount!==''&&item.amount!==undefined?item.amount:'')+'" data-plan-id="'+item.id+'" data-plan-field="amount" placeholder="0.00" style="'+pmStyle+'"/><\/td>'+
+      '<td style="padding:0 6px;text-align:center;">'+(isFilled?'<button class="del-btn" data-del-plan="'+item.id+'">×<\/button>':'')+'<\/td>';
     tbody.appendChild(tr);
   });
 
@@ -1295,7 +1326,7 @@ async function loadPlannerPanel(){
   try{
     const planNames=await loadPlanNames();
     const sel=document.getElementById('planSelect');
-    sel.innerHTML='<option value="">— select a plan —</option>';
+    sel.innerHTML='<option value="">— select a plan —<\/option>';
     planNames.forEach(n=>{
       const opt=document.createElement('option');
       opt.value=n; opt.textContent=n.replace(/ Plan$/,'');
@@ -1343,10 +1374,10 @@ document.getElementById('newPlanBtn').addEventListener('click',async()=>{
   finally{ setSpinner(false); }
 });
 
-// ── GOOGLE IDENTITY ───────────────────────────────────────────────────────────
+// -- GOOGLE IDENTITY -----------------------------------------------------------
 
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+// -- INIT ----------------------------------------------------------------------
 loadLocal();
 buildWeekOptions();
 buildPocketSelect();
