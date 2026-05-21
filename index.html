@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Budget</title>
 <link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" href="icon-192.png"/>
+<link rel="shortcut icon" type="image/png" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -570,7 +572,8 @@ function clearRefreshToken(){ /* not used */ }
 
 function handleAuth(){
   if(accessToken){ if(confirm('Sign out?')){ signOut(); } return; }
-  tokenClient.requestAccessToken({prompt:'consent'});
+  // Always use select_account so user can pick account and popup always appears
+  tokenClient.requestAccessToken({prompt:'select_account'});
 }
 
 function signOut(){
@@ -1338,12 +1341,39 @@ function initGoogleAuth(){
     client_id:CLIENT_ID,
     scope:SCOPES,
     callback:(resp)=>{
-      if(resp.error){ console.warn('Token error:',resp.error); showToast('Sign-in error: '+resp.error,'err'); return; }
+      if(resp.error){
+        console.warn('Token error:',resp.error);
+        // If silent refresh failed, show sign-in screen so user can sign in manually
+        if(resp.error==='interaction_required'||resp.error==='access_denied'){
+          updateAuthUI(false);
+        } else {
+          showToast('Sign-in error: '+resp.error,'err');
+        }
+        return;
+      }
       onTokenReceived(resp.access_token, resp.expires_in);
     },
   });
 
-  // One Tap for fast sign-in on Android/desktop
+  // Try stored access token first
+  const saved=loadToken();
+  if(saved){
+    const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
+    const msLeft=stored.exp?stored.exp-Date.now():0;
+    if(msLeft>120000){
+      // Token still valid — go straight in, no prompts
+      accessToken=saved;
+      scheduleRefresh(msLeft/1000);
+      updateAuthUI(true);
+      return;
+    }
+    // Token expired — try silent refresh (no UI shown)
+    clearToken();
+    tokenClient.requestAccessToken({prompt:''});
+    return;
+  }
+
+  // No stored token — show sign-in screen and One Tap bubble
   if(google.accounts&&google.accounts.id){
     google.accounts.id.initialize({
       client_id:CLIENT_ID,
@@ -1353,23 +1383,7 @@ function initGoogleAuth(){
     });
     google.accounts.id.prompt();
   }
-
-  // Try stored access token first
-  const saved=loadToken();
-  if(saved){
-    const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
-    const msLeft=stored.exp?stored.exp-Date.now():0;
-    if(msLeft>120000){
-      // Token still valid — use it
-      accessToken=saved;
-      scheduleRefresh(msLeft/1000);
-      updateAuthUI(true);
-      return;
-    }
-    // Token expired or nearly expired — try silent refresh
-    clearToken();
-    tokenClient.requestAccessToken({prompt:''});
-  }
+  // Sign-in screen is already showing (default state)
 }
 </script>
 <script src="https://accounts.google.com/gsi/client" onload="initGoogleAuth()" async defer></script>
