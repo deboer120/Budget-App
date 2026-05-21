@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://sheets.googleapis.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-src https://accounts.google.com;"/>
+<link rel="preconnect" href="https://accounts.google.com"/>
+<link rel="preconnect" href="https://apis.google.com"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Budget</title>
 <link rel="manifest" href="manifest.json"/>
@@ -1429,7 +1432,13 @@ function initGoogleAuth(){
       clearInterval(poll);
       if(!window._gisInited){ window._gisInited=true; initGoogleAuth(); }
     }
-    if(attempts>20) clearInterval(poll); // give up after 10s
+    if(attempts>20){
+      clearInterval(poll);
+      var h=document.getElementById('signinHint');
+      if(h) h.textContent='Google Sign-in could not load. Try refreshing or check your connection.';
+      var btn=document.querySelector('.big-btn');
+      if(btn) btn.style.opacity='0.4';
+    }
   },500);
 })();
 </script>
