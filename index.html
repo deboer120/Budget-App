@@ -349,42 +349,49 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <!-- LEDGER -->
     <div class="panel" id="panel-ledger">
       <div id="ledgerBanner"></div>
-      <div class="card" style="padding-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="card" style="padding:14px 0 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 14px;">
           <div class="section-title" style="margin:0;">Weekly Ledger</div>
           <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
         </div>
-        <div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;min-width:320px;table-layout:fixed;">
+        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+            <colgroup>
+              <col style="width:17%;"/>
+              <col/>
+              <col style="width:20%;"/>
+              <col style="width:18%;"/>
+              <col style="width:8%;"/>
+            </colgroup>
             <thead><tr>
-              <th style="width:72px;">Date</th>
-              <th>Expense</th>
-              <th style="width:80px;">Source</th>
-              <th style="width:68px;text-align:right;">Cost</th>
-              <th style="width:32px;"></th>
+              <th style="padding:8px 6px;font-size:10px;">Date</th>
+              <th style="padding:8px 6px;font-size:10px;">Expense</th>
+              <th style="padding:8px 6px;font-size:10px;">Source</th>
+              <th style="padding:8px 6px;font-size:10px;text-align:right;">Cost</th>
+              <th></th>
             </tr></thead>
             <tbody id="ledgerBody"></tbody>
           </table>
         </div>
-        <p class="muted" style="margin-top:8px;font-size:12px;">Synced with your Google Sheet.</p>
+        <p class="muted" style="margin-top:8px;font-size:12px;padding:0 14px;">Synced with your Google Sheet.</p>
       </div>
     </div>
 
     <!-- SOURCES -->
     <div class="panel" id="panel-pockets">
       <div id="sourcesBanner"></div>
-      <div class="card" style="padding-bottom:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="card" style="padding:14px 0 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 14px;">
           <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
         </div>
-        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:28%;"/>
-              <col style="width:20%;"/>
-              <col style="width:20%;"/>
-              <col style="width:20%;"/>
-              <col style="width:12%;"/>
+              <col style="width:30%;"/>
+              <col style="width:18%;"/>
+              <col style="width:22%;"/>
+              <col style="width:22%;"/>
+              <col style="width:8%;"/>
             </colgroup>
             <thead><tr>
               <th style="padding:8px 6px;font-size:10px;">Source</th>
@@ -396,7 +403,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
             <tbody id="sourceBody"></tbody>
           </table>
         </div>
-        <div class="slot-info" id="slotInfo"></div>
+        <div class="slot-info" id="slotInfo" style="padding:0 14px;"></div>
       </div>
     </div>
 
@@ -420,13 +427,13 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div class="amount" id="planTotal">$0.00</div>
         <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
       </div>
-      <div class="card" id="planItemsCard" style="display:none;padding-bottom:10px;">
-        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
+      <div class="card" id="planItemsCard" style="display:none;padding:0;">
+        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:62%;"/>
-              <col style="width:26%;"/>
-              <col style="width:12%;"/>
+              <col style="width:68%;"/>
+              <col style="width:22%;"/>
+              <col style="width:10%;"/>
             </colgroup>
             <thead><tr>
               <th style="padding:8px 6px;font-size:10px;">Description</th>
@@ -1021,7 +1028,7 @@ function renderLedger(){
     state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
   }
   const pocketOpts='<option value="">—<\/option>'+state.pockets.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'<\/option>').join('');
-  const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 0;outline:none;';
+  const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 4px;outline:none;overflow:hidden;text-overflow:ellipsis;';
   const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
 
   state.entries.forEach((e)=>{
@@ -1029,7 +1036,7 @@ function renderLedger(){
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/><\/td>'+
+      '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:100%;"/><\/td>'+
       '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" name="entry-item" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/><\/td>'+
       '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
       '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
