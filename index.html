@@ -355,7 +355,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
           <div class="section-title" style="margin:0;">Weekly Ledger</div>
           <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
         </div>
-        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:100%;">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:17%;"/>
@@ -385,7 +385,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
         </div>
-        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:100%;">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:28%;"/>
@@ -428,8 +428,8 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div class="amount" id="planTotal">$0.00</div>
         <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
       </div>
-      <div class="card" id="planItemsCard" style="display:none;padding:14px;">
-        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+      <div class="card" id="planItemsCard" style="display:none;padding:0;overflow:hidden;">
+        <div style="border-radius:var(--radius);overflow:hidden;">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:68%;"/>
@@ -449,6 +449,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
   </div>
 
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.4.2</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
