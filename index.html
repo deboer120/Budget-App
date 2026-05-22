@@ -136,9 +136,6 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
-/* Full-bleed table inside a card - breaks out of padding */
-.card .bleed-table{margin:0 -16px;width:calc(100% + 32px);}
-.card .bleed-table table{width:100%;border-collapse:collapse;table-layout:fixed;}
 
 /* Balance card */
 .balance-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;margin-bottom:12px;}
@@ -183,7 +180,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 
 /* Ledger */
 .ledger-scroll{overflow-x:auto;margin-top:10px;border-radius:var(--radius-sm);border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;font-size:14px;min-width:460px;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
 th{background:var(--surface2);padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.5px;border-bottom:1px solid var(--border);text-transform:uppercase;}
 td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
@@ -353,13 +350,13 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <!-- LEDGER -->
     <div class="panel" id="panel-ledger">
       <div id="ledgerBanner"></div>
-      <div class="card" style="padding:14px 0 10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 14px;">
+      <div class="card" style="padding:14px 14px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="section-title" style="margin:0;">Weekly Ledger</div>
           <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
         </div>
-        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-          <table>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:17%;"/>
               <col/>
@@ -377,19 +374,19 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
             <tbody id="ledgerBody"></tbody>
           </table>
         </div>
-        <p class="muted" style="margin-top:8px;font-size:12px;padding:0 14px;">Synced with your Google Sheet.</p>
+        <p class="muted" style="margin-top:8px;font-size:12px;">Synced with your Google Sheet.</p>
       </div>
     </div>
 
     <!-- SOURCES -->
     <div class="panel" id="panel-pockets">
       <div id="sourcesBanner"></div>
-      <div class="card" style="padding:14px 0 10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 14px;">
+      <div class="card" style="padding:14px 14px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
         </div>
-        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-          <table>
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:28%;"/>
               <col style="width:18%;"/>
@@ -407,7 +404,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
             <tbody id="sourceBody"></tbody>
           </table>
         </div>
-        <div class="slot-info" id="slotInfo" style="padding:0 14px;"></div>
+        <div class="slot-info" id="slotInfo"></div>
       </div>
     </div>
 
@@ -431,9 +428,9 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div class="amount" id="planTotal">$0.00</div>
         <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
       </div>
-      <div class="card" id="planItemsCard" style="display:none;padding:0;">
-        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-          <table>
+      <div class="card" id="planItemsCard" style="display:none;padding:14px;">
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
               <col style="width:68%;"/>
               <col style="width:22%;"/>
