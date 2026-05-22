@@ -10,6 +10,7 @@
 <link rel="icon" type="image/png" href="icon-192.png"/>
 <link rel="shortcut icon" type="image/png" href="icon-192.png"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Budget"/>
@@ -135,6 +136,9 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+/* Full-bleed table inside a card - breaks out of padding */
+.card .bleed-table{margin:0 -16px;width:calc(100% + 32px);}
+.card .bleed-table table{width:100%;border-collapse:collapse;table-layout:fixed;}
 
 /* Balance card */
 .balance-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;margin-bottom:12px;}
@@ -354,8 +358,8 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
           <div class="section-title" style="margin:0;">Weekly Ledger</div>
           <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
         </div>
-        <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+          <table>
             <colgroup>
               <col style="width:17%;"/>
               <col/>
@@ -384,14 +388,14 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 14px;">
           <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
         </div>
-        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+          <table>
             <colgroup>
-              <col style="width:30%;"/>
+              <col style="width:28%;"/>
               <col style="width:18%;"/>
               <col style="width:22%;"/>
               <col style="width:22%;"/>
-              <col style="width:8%;"/>
+              <col style="width:10%;"/>
             </colgroup>
             <thead><tr>
               <th style="padding:8px 6px;font-size:10px;">Source</th>
@@ -428,8 +432,8 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div class="meta" id="planMeta">Budget $0 · Remaining $0</div>
       </div>
       <div class="card" id="planItemsCard" style="display:none;padding:0;">
-        <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-          <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <div class="bleed-table" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+          <table>
             <colgroup>
               <col style="width:68%;"/>
               <col style="width:22%;"/>
@@ -676,9 +680,9 @@ function updateAuthUI(signedIn){
     }
     return;
   }
-  // Signed in - cancel any One Tap prompt
+  // Signed in - cancel any One Tap prompt silently
   if(window.google&&google.accounts&&google.accounts.id){
-    google.accounts.id.cancel();
+    try{ google.accounts.id.cancel(); }catch(e){ /* suppress AbortError */ }
   }
   currentTabName=currentTabNameFn();
   updateWeekChip();
