@@ -380,17 +380,17 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:30%;"/>
-              <col style="width:18%;"/>
-              <col style="width:18%;"/>
-              <col style="width:18%;"/>
-              <col style="width:16%;"/>
+              <col style="width:28%;"/>
+              <col style="width:20%;"/>
+              <col style="width:20%;"/>
+              <col style="width:20%;"/>
+              <col style="width:12%;"/>
             </colgroup>
             <thead><tr>
-              <th>Source</th>
-              <th>Weekly</th>
-              <th>Spent</th>
-              <th>Left</th>
+              <th style="padding:8px 6px;font-size:10px;">Source</th>
+              <th style="padding:8px 6px;font-size:10px;">Weekly</th>
+              <th style="padding:8px 6px;font-size:10px;">Spent</th>
+              <th style="padding:8px 6px;font-size:10px;">Left</th>
               <th></th>
             </tr></thead>
             <tbody id="sourceBody"></tbody>
@@ -424,13 +424,13 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="border-radius:var(--radius-sm);border:1px solid var(--border);">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:65%;"/>
-              <col style="width:25%;"/>
-              <col style="width:10%;"/>
+              <col style="width:62%;"/>
+              <col style="width:26%;"/>
+              <col style="width:12%;"/>
             </colgroup>
             <thead><tr>
-              <th>Description</th>
-              <th>Amount</th>
+              <th style="padding:8px 6px;font-size:10px;">Description</th>
+              <th style="padding:8px 6px;font-size:10px;">Amount</th>
               <th></th>
             </tr></thead>
             <tbody id="planBody"></tbody>
@@ -523,6 +523,17 @@ function getMondayOf(date){
 function tabName(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
 function currentTabNameFn(){ return tabName(getMondayOf(new Date())); }
 function todayStr(){ const d=new Date(); return (d.getMonth()+1)+'/'+(d.getDate())+'/'+(d.getFullYear()); }
+
+function formatDate(raw){
+  if(!raw) return '';
+  // Normalize any date format to M/D/YY
+  const d=new Date(raw);
+  if(!isNaN(d.getTime())){
+    return (d.getMonth()+1)+'/'+(d.getDate())+'/'+(String(d.getFullYear()).slice(-2));
+  }
+  // Already short format like 5/18/26 - return as-is
+  return raw;
+}
 
 function buildWeekOptions(){
   const sel=document.getElementById('weekSelect');
@@ -642,7 +653,26 @@ function updateAuthUI(signedIn){
   btn.classList.toggle('signed-in',signedIn);
   document.getElementById('signinScreen').style.display=signedIn?'none':'flex';
   document.getElementById('bottomNav').style.display=signedIn?'grid':'none';
-  if(!signedIn){ panels.forEach(p=>p.classList.remove('active')); sheetLoaded=false; return; }
+  if(!signedIn){
+    panels.forEach(p=>p.classList.remove('active'));
+    sheetLoaded=false;
+    // Show One Tap only when not signed in and GIS is ready
+    if(window.google&&google.accounts&&google.accounts.id&&!window._oneTapInited){
+      window._oneTapInited=true;
+      google.accounts.id.initialize({
+        client_id:CLIENT_ID,
+        callback:onOneTapCredential,
+        auto_select:false,
+        cancel_on_tap_outside:true,
+      });
+      google.accounts.id.prompt();
+    }
+    return;
+  }
+  // Signed in - cancel any One Tap prompt
+  if(window.google&&google.accounts&&google.accounts.id){
+    google.accounts.id.cancel();
+  }
   currentTabName=currentTabNameFn();
   updateWeekChip();
   buildWeekOptions();
@@ -999,7 +1029,7 @@ function renderLedger(){
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
     tr.innerHTML=
-      '<td style="padding:0 8px;"><input value="'+esc(e.date)+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/><\/td>'+
+      '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:60px;"/><\/td>'+
       '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" name="entry-item" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/><\/td>'+
       '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
       '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
@@ -1065,7 +1095,7 @@ function renderPockets(){
   document.getElementById('slotInfo').textContent=
     state.totalSlots>0?state.filledSlots+' of '+state.totalSlots+' source slots used ('+avail+' open)':'';
 
-  const iStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:var(--ink);width:100%;padding:10px 8px;outline:none;overflow:hidden;text-overflow:ellipsis;';
+  const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 6px;outline:none;overflow:hidden;text-overflow:ellipsis;';
   const monoStyle=iStyle+'font-family:var(--mono);';
 
   // Render filled sources
@@ -1077,8 +1107,8 @@ function renderPockets(){
     tr.innerHTML=
       '<td style="padding:0;"><input value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" name="src-name" data-src-field="name" style="'+iStyle+'"/><\/td>'+
       '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" name="src-amount" data-src-field="amount" style="'+monoStyle+'"/><\/td>'+
-      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:var(--ink2);">'+money(s)+'<\/td>'+
-      '<td style="padding:10px 8px;font-family:var(--mono);font-size:13px;color:'+color+'">'+money(rem)+'<\/td>'+
+      '<td style="padding:9px 6px;font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:right;">'+money(s)+'<\/td>'+
+      '<td style="padding:9px 6px;font-family:var(--mono);font-size:12px;color:'+color+';text-align:right;">'+money(rem)+'<\/td>'+
       '<td style="padding:0 6px;text-align:center;"><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'">×<\/button><\/td>';
     body.appendChild(tr);
   });
@@ -1280,7 +1310,7 @@ function renderPlanner(){
 
   rowsToRender.forEach((item)=>{
     const isFilled=item.desc||item.amount;
-    const piStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:10px 8px;outline:none;overflow:hidden;text-overflow:ellipsis;';
+    const piStyle='border:none;background:transparent;font-size:13px;font-family:var(--sans);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:9px 6px;outline:none;overflow:hidden;text-overflow:ellipsis;';
     const pmStyle='border:none;background:transparent;font-size:13px;font-family:var(--mono);color:'+(isFilled?'var(--ink)':'var(--ink3)')+';width:100%;padding:10px 8px;outline:none;';
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
@@ -1439,18 +1469,8 @@ function initGoogleAuth(){
     // Don't auto-prompt — let user tap sign in
     return;
   }
-  // No stored token - show sign-in screen (already visible by default)
-  // One Tap - only initialize once to avoid duplicate credentials.get calls
-  if(google.accounts&&google.accounts.id&&!window._oneTapInited){
-    window._oneTapInited=true;
-    google.accounts.id.initialize({
-      client_id:CLIENT_ID,
-      callback:onOneTapCredential,
-      auto_select:false,
-      cancel_on_tap_outside:true,
-    });
-    google.accounts.id.prompt();
-  }
+  // No stored token - show sign-in screen
+  // One Tap handled by updateAuthUI when not signed in
 }
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
