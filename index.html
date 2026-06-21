@@ -438,7 +438,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.5.0</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.5.1</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -469,6 +469,15 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.5.1 - Weekly tab names now include the year (e.g. "5/18/26") to remove
+//          the ambiguity that comes from reusing M/D names across years —
+//          this matters for the Money Allocation/Trends formula work which
+//          references tabs by exact name. Tab ordering now pins all 6 fixed
+//          tabs in place every refresh: Next week, This week, Last week,
+//          2 weeks ago, Money Allocation, Trends — followed by any other
+//          tabs (old weeks, saved Plans) — with Week Template and Plan
+//          Template always pushed to the very end.
 //
 // v1.5.0 - Week selector now includes "next week"; the app auto-creates
 //          ANY missing week tab it displays (next, current, 2 prior) from
@@ -537,7 +546,7 @@ function getMondayOf(date){
   d.setHours(0,0,0,0);
   return d;
 }
-function tabName(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+function tabName(d){ return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(-2); }
 function currentTabNameFn(){ return tabName(getMondayOf(new Date())); }
 function todayStr(){ const d=new Date(); return (d.getMonth()+1)+'/'+(d.getDate())+'/'+(d.getFullYear()); }
 
@@ -722,18 +731,35 @@ async function getSheetNames(){
   return (data.sheets||[]).map(s=>s.properties.title);
 }
 
-async function reorderTabs(currentWeekName){
-  // Get full sheet metadata including sheetIds
+async function reorderTabs(){
+  // Desired left-to-right order:
+  //   Next week, This week, Last week, 2 weeks ago,
+  //   Money Allocation, Trends, [anything else, left untouched],
+  //   Week Template, Plan Template
   const data=await sheetsReq('GET','?fields=sheets.properties');
   const sheets=data.sheets||[];
+  const total=sheets.length;
   const findId=name=>{ const s=sheets.find(x=>x.properties.title===name); return s?s.properties.sheetId:null; };
+
+  const weekNames=getWeekList().map(w=>w.name); // next, this, last, 2 weeks ago
+  const frontOrder=[...weekNames,'Money Allocation','Trends'];
+
   const requests=[];
-  const weekId=findId(currentWeekName);
-  const allocId=findId('Money Allocation');
-  // Move current week to index 0
-  if(weekId!==null) requests.push({updateSheetProperties:{properties:{sheetId:weekId,index:0},fields:'index'}});
-  // Move Money Allocation to index 1
-  if(allocId!==null) requests.push({updateSheetProperties:{properties:{sheetId:allocId,index:1},fields:'index'}});
+  let idx=0;
+  frontOrder.forEach(name=>{
+    const id=findId(name);
+    if(id!==null){
+      requests.push({updateSheetProperties:{properties:{sheetId:id,index:idx},fields:'index'}});
+      idx++;
+    }
+  });
+
+  // Pin both templates to the very end, in this order
+  const tmplWeekId=findId(TEMPLATE_TAB);
+  const tmplPlanId=findId(PLAN_TEMPLATE);
+  if(tmplWeekId!==null) requests.push({updateSheetProperties:{properties:{sheetId:tmplWeekId,index:total-2},fields:'index'}});
+  if(tmplPlanId!==null) requests.push({updateSheetProperties:{properties:{sheetId:tmplPlanId,index:total-1},fields:'index'}});
+
   if(requests.length) await sheetsReq('POST',':batchUpdate',{requests});
 }
 
@@ -880,7 +906,7 @@ async function doFullRefresh(){
       setTimeout(()=>clearBanner('addBanner'),4000);
     }
     // Reorder tabs: current week first, Money Allocation second
-    try{ await reorderTabs(currentTabName); }catch(e){ console.warn('Tab reorder failed:',e.message); }
+    try{ await reorderTabs(); }catch(e){ console.warn('Tab reorder failed:',e.message); }
 
     // Load entries + sources in parallel
     const [entries, srcResult]=await Promise.all([
