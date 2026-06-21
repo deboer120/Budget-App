@@ -99,7 +99,6 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:v
 .week-chip.live{background:var(--accent-dim);color:var(--accent-text);}
 
 /* One Tap container */
-#g_id_onload{position:fixed;top:70px;right:12px;z-index:500;}
 
 /* Bottom nav */
 .bottom-nav{
@@ -272,16 +271,6 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     </div>
   </div>
 
-  <!-- Google One Tap anchor -->
-  <div id="g_id_onload"
-    data-client_id="692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com"
-    data-callback="onOneTapCredential"
-    data-auto_prompt="true"
-    data-cancel_on_tap_outside="false"
-    data-context="signin"
-    data-itp_support="true">
-  </div>
-
   <div class="content">
 
     <!-- SIGN IN -->
@@ -449,7 +438,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.4.2</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.5.0</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -477,6 +466,25 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 <div class="toast" id="toast"></div>
 
 <script>
+// -- CHANGELOG -------------------------------------------------------------------
+// Version tracking starts here (v1.5.0). Bump the version tag (search
+// "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.5.0 - Week selector now includes "next week"; the app auto-creates
+//          ANY missing week tab it displays (next, current, 2 prior) from
+//          the template, not just the current week. Removed Google One Tap
+//          popup entirely (was unreliable and duplicated the in-app sign-in
+//          button). Fixed the real cause of short-lived sign-in: on reload
+//          with an expired token the app now attempts a silent refresh
+//          before giving up, instead of immediately showing the sign-in
+//          screen. Added a visibility-change listener so reopening a
+//          backgrounded tab also retries silently (mobile browsers suspend
+//          JS timers while backgrounded, so the scheduled refresh may never
+//          have fired).
+// v1.4.2 - Mobile table scaling fixes (Ledger/Sources/Planner no longer
+//          overflow their card on small screens). Console cleanup (form
+//          field name attributes, deprecated meta tag, AbortError
+//          suppression). Earlier versions were not individually tracked.
 // -- CONFIG --------------------------------------------------------------------
 const CLIENT_ID     = '692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com';
 const SHEET_ID      = '1DIARGC8hijfimrmYtPlqJlHbjxhjY98WlHpbg9pohXQ';
@@ -544,19 +552,30 @@ function formatDate(raw){
   return raw;
 }
 
-function buildWeekOptions(){
-  const sel=document.getElementById('weekSelect');
-  sel.innerHTML='';
+function getWeekList(){
+  // Returns weeks in display order: next week, this week, then 2 prior weeks
   const monday=getMondayOf(new Date());
+  const weeks=[];
+  const next=new Date(monday); next.setDate(next.getDate()+7);
+  weeks.push({name:tabName(next), label:tabName(next)+' (next week)'});
   for(let i=0;i<3;i++){
     const d=new Date(monday);
     d.setDate(d.getDate()-i*7);
     const name=tabName(d);
-    const opt=document.createElement('option');
-    opt.value=name;
-    opt.textContent=i===0?name+' (this week)':name;
-    sel.appendChild(opt);
+    weeks.push({name, label:i===0?name+' (this week)':name});
   }
+  return weeks;
+}
+
+function buildWeekOptions(){
+  const sel=document.getElementById('weekSelect');
+  sel.innerHTML='';
+  getWeekList().forEach(w=>{
+    const opt=document.createElement('option');
+    opt.value=w.name;
+    opt.textContent=w.label;
+    sel.appendChild(opt);
+  });
   sel.value=currentTabNameFn();
 }
 
@@ -650,12 +669,6 @@ function onTokenReceived(accessTok, expiresIn){
   updateAuthUI(true);
 }
 
-// One Tap credential callback
-function onOneTapCredential(response){
-  // One Tap gives id_token — trigger silent token request
-  if(tokenClient) tokenClient.requestAccessToken({prompt:''});
-}
-
 function updateAuthUI(signedIn){
   const btn=document.getElementById('authBtn');
   document.getElementById('authBtnLabel').textContent=signedIn?'Signed in':'Sign in';
@@ -665,22 +678,7 @@ function updateAuthUI(signedIn){
   if(!signedIn){
     panels.forEach(p=>p.classList.remove('active'));
     sheetLoaded=false;
-    // Show One Tap only when not signed in and GIS is ready
-    if(window.google&&google.accounts&&google.accounts.id&&!window._oneTapInited){
-      window._oneTapInited=true;
-      google.accounts.id.initialize({
-        client_id:CLIENT_ID,
-        callback:onOneTapCredential,
-        auto_select:false,
-        cancel_on_tap_outside:true,
-      });
-      google.accounts.id.prompt();
-    }
     return;
-  }
-  // Signed in - cancel any One Tap prompt silently
-  if(window.google&&google.accounts&&google.accounts.id){
-    try{ google.accounts.id.cancel(); }catch(e){ /* suppress AbortError */ }
   }
   currentTabName=currentTabNameFn();
   updateWeekChip();
@@ -749,6 +747,29 @@ async function createTabFromTemplate(newName){
     insertSheetIndex:sheets.length,
     newSheetName:newName
   }}]});
+}
+
+// Checks every week shown in the Add tab's week selector (next, current,
+// and the 2 prior weeks) and creates any missing tab from the template.
+// Returns {created:[names], error:string|null}
+async function ensureWeekTabsExist(){
+  const weeks=getWeekList().map(w=>w.name);
+  let names;
+  try{ names=await getSheetNames(); }
+  catch(e){ return {created:[],error:'Could not check Sheet tabs: '+e.message}; }
+  const created=[];
+  for(const w of weeks){
+    if(!names.includes(w)){
+      try{
+        await createTabFromTemplate(w);
+        names.push(w);
+        created.push(w);
+      }catch(e){
+        return {created, error:e.message};
+      }
+    }
+  }
+  return {created, error:null};
 }
 
 async function loadEntriesFromTab(tab){
@@ -850,17 +871,13 @@ async function doFullRefresh(){
   _refreshLock=true; _lastRefresh=Date.now();
   setSpinner(true);
   try{
-    // Ensure current week tab exists
-    const names=await getSheetNames();
-    if(!names.includes(currentTabName)){
-      showBanner('addBanner','warn','Tab "'+currentTabName+'" not found — creating from template…');
-      try{
-        await createTabFromTemplate(currentTabName);
-        showBanner('addBanner','info','Tab "'+currentTabName+'" created. You\'re ready to log expenses.');
-        setTimeout(()=>clearBanner('addBanner'),4000);
-      }catch(e){
-        showBanner('addBanner','error',e.message+' — please create the tab manually in Google Sheets.');
-      }
+    // Ensure every week shown in the selector exists (next, current, 2 prior)
+    const tabResult=await ensureWeekTabsExist();
+    if(tabResult.error){
+      showBanner('addBanner','error',tabResult.error+' — please create missing weekly tabs manually.');
+    } else if(tabResult.created.length){
+      showBanner('addBanner','info','Created tab'+(tabResult.created.length>1?'s':'')+': '+tabResult.created.join(', '));
+      setTimeout(()=>clearBanner('addBanner'),4000);
     }
     // Reorder tabs: current week first, Money Allocation second
     try{ await reorderTabs(currentTabName); }catch(e){ console.warn('Tab reorder failed:',e.message); }
@@ -1428,6 +1445,32 @@ document.getElementById('newPlanBtn').addEventListener('click',async()=>{
 // -- GOOGLE IDENTITY -----------------------------------------------------------
 
 
+// -- VISIBILITY RETRY -----------------------------------------------------------
+// Mobile browsers suspend JS timers (like our scheduled silent refresh) while
+// the tab/app is backgrounded. When the user comes back, re-check token
+// freshness and retry silently if needed, rather than waiting for a timer
+// that may never have fired.
+let _lastVisibilityRetry=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible') return;
+  if(Date.now()-_lastVisibilityRetry<30000) return; // 30s cooldown
+  _lastVisibilityRetry=Date.now();
+  if(!tokenClient) return;
+  const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
+  const msLeft=stored.exp?stored.exp-Date.now():0;
+  if(msLeft>120000){
+    // Token still valid - make sure we are using it and the refresh timer is live
+    if(!accessToken&&stored.token){ accessToken=stored.token; updateAuthUI(true); }
+    scheduleRefresh(msLeft/1000);
+    return;
+  }
+  // Token missing or expired while backgrounded - try silent refresh
+  if(accessToken||stored.token){
+    accessToken=null; clearToken();
+    tokenClient.requestAccessToken({prompt:''});
+  }
+});
+
 // -- INIT ----------------------------------------------------------------------
 loadLocal();
 buildWeekOptions();
@@ -1473,13 +1516,15 @@ function initGoogleAuth(){
       updateAuthUI(true);
       return;
     }
-    // Token expired — clear it, show sign-in screen
+    // Token expired — this is the common case after the app has been
+    // closed for a while. Try a SILENT refresh before giving up; if the
+    // browser still has an active Google session this succeeds with no
+    // visible prompt. Only falls back to the sign-in screen if that fails.
     clearToken();
-    // Don't auto-prompt — let user tap sign in
+    tokenClient.requestAccessToken({prompt:''});
     return;
   }
-  // No stored token - show sign-in screen
-  // One Tap handled by updateAuthUI when not signed in
+  // No stored token at all - show sign-in screen, no auto-prompt
 }
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
