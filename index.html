@@ -270,8 +270,9 @@ td select{color-scheme:light dark;}
 .pfill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;}
 .pmk{position:absolute;top:-7px;bottom:-7px;width:2px;margin-left:-1px;}
 .pmk span{position:absolute;white-space:nowrap;font-size:10px;font-weight:700;line-height:1.25;text-align:center;}
-.pmk.up span{bottom:100%;margin-bottom:3px;}
-.pmk.dn span{top:100%;margin-top:3px;}
+.pmk.up span{bottom:100%;margin-bottom:7px;}
+.pmk.dn span{top:100%;margin-top:7px;}
+.pmk.dn2 span{margin-top:38px;}
 </style>
 </head>
 <body>
@@ -531,7 +532,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.1</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.2</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -569,6 +570,10 @@ td select{color-scheme:light dark;}
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
 //
+// v1.9.2 - Pacing bars: new teal "projected end" marker (spent so far + what the plan
+//          still expects, including rent still due), "Still expected this window"
+//          line under every bar and on every category row, "expected total" is now
+//          "budgeted total", and marker labels sit clear of their lines.
 // v1.9.1 - Fewer Google prompts. The app remembers your Google account on this
 // device (needs a one-time re-consent for the email scope) and passes it as a hint,
 // so the "Choose an account" screen is skipped. The token now refreshes on your next
@@ -2310,12 +2315,20 @@ function analysisCompute(inp){
     o.act=o.rows.reduce((s,r)=>s+r.act,0)+o.other;
     o.lumpAnt=o.lumpPer*ends.length; o.lumpDue=o.lumpPer*due.length; o.lumpUp=o.lumpPer*upcoming.length;
     o.should=(o.ant-o.lumpAnt)*elapsed/days+o.lumpDue;
+    o.rows.forEach(r=>{
+      const perEnd=ends.length?r.lump/ends.length:0;
+      r.should=(r.ant-r.lump)*elapsed/days+perEnd*due.length;
+      r.still=Math.max(0,r.ant-r.should);
+    });
+    o.still=Math.max(0,o.ant-o.should);
   });
   inc.ant=inc.rows.reduce((s,r)=>s+r.ant,0);
   inc.should=inc.rows.reduce((s,r)=>s+r.should,0);
   inc.act=inc.rows.reduce((s,r)=>s+r.act,0)+inc.other;
-  const total={ant:0,act:0,should:0};
-  GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; total.should+=groups[g].should; });
+  inc.rows.forEach(r=>{ r.still=Math.max(0,r.ant-r.should); });
+  inc.still=Math.max(0,inc.ant-inc.should);
+  const total={ant:0,act:0,should:0,still:0};
+  GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; total.should+=groups[g].should; total.still+=groups[g].still; });
 
   // "after rent" marker: spent so far + rent still to come; once rent is paid it stays
   // at the running total as of the rent date
@@ -2477,7 +2490,9 @@ async function loadAnalysis(){
 function anaBar(o){
   const res=o.res, income=!!o.income;
   const after=o.after?o.after.v:null;
-  const scale=Math.max(o.ant,o.act,after===null?0:after,1);
+  const still=Math.max(0,o.still||0);
+  const proj=o.act+still;
+  const scale=Math.max(o.ant,o.act,after===null?0:after,proj,1);
   const p=v=>Math.max(0,Math.min(100,v/scale*100));
   const over=o.act>o.ant+0.005;
   const finished=res.elapsed>=res.days;
@@ -2492,26 +2507,40 @@ function anaBar(o){
     let tr='translateX(-50%)'; if(x>86) tr='translateX(-92%)'; if(x<8) tr='translateX(-8%)';
     return '<span style="color:'+c+';transform:'+tr+'">'+txt+'<\/span>';
   };
-  let m='<div class="pmk up" style="left:'+p(o.should).toFixed(2)+'%;background:var(--ink)">'+lab(p(o.should),'should be today<br>'+money(o.should),'var(--ink)')+'<\/div>';
+  // markers: should-be-today, after rent, budgeted total (only when the bar stretched), projected end
+  const mk=[{v:o.should,txt:'should be today<br>'+money(o.should),c:'var(--ink)',bg:'var(--ink)',side:'up'}];
   if(after!==null){
     const ac=after>o.ant+0.005?'var(--danger-text)':'var(--warn-text)';
-    m+='<div class="pmk dn" style="left:'+p(after).toFixed(2)+'%;background:'+ac+'">'+lab(p(after),(o.after.paid?'after rent (paid)':'after rent')+'<br>'+money(after),ac)+'<\/div>';
+    mk.push({v:after,txt:(o.after.paid?'after rent (paid)':'after rent')+'<br>'+money(after),c:ac,bg:ac,side:'dn'});
   }
-  const stretched=scale>o.ant+0.5;
-  if(stretched){
-    const near=Math.abs(p(o.ant)-p(o.should))<16;
-    const same=Math.abs(p(o.ant)-p(o.should))<1.5;
-    m+='<div class="pmk '+((income||near)?'dn':'up')+'" style="left:'+p(o.ant).toFixed(2)+'%;background:#a78bfa">'+(same?'':lab(p(o.ant),'expected total<br>'+money(o.ant),'#a78bfa'))+'<\/div>';
-  }
+  if(scale>o.ant+0.5) mk.push({v:o.ant,txt:'budgeted total<br>'+money(o.ant),c:'#a78bfa',bg:'#a78bfa',side:'auto'});
+  mk.push({v:proj,txt:'projected end<br>'+money(proj),c:'#2dd4bf',bg:'#2dd4bf',side:'auto'});
+  const placed=[];
+  let m='', row2=false;
+  mk.forEach(k=>{
+    const x=p(k.v);
+    const clash=sd=>placed.filter(q=>q.side===sd&&q.lab&&Math.abs(q.x-x)<30).length;
+    let side=k.side;
+    let cls='';
+    if(side==='auto'){
+      const cu=clash('up'), cd=clash('dn');
+      if(cu===0) side='up'; else if(cd===0) side='dn'; else { side='dn'; cls=' dn2'; row2=true; }
+    }
+    const hide=placed.some(q=>q.lab&&q.side===side&&Math.abs(q.x-x)<1.5);
+    placed.push({x,side,lab:!hide});
+    m+='<div class="pmk '+side+cls+'" style="left:'+x.toFixed(2)+'%;background:'+k.bg+'">'+(hide?'':lab(x,k.txt,k.c))+'<\/div>';
+  });
   const diff=o.act-o.should;
   let meta;
-  if(income) meta='Expected '+money(o.ant)+' · '+(over?money(o.act-o.ant)+' past expected':(res.elapsed===0?'not started yet':(diff>=0?money(diff)+' ahead of pace':money(-diff)+' behind pace')));
+  if(income) meta='Budgeted '+money(o.ant)+' · '+(over?money(o.act-o.ant)+' past budgeted':(res.elapsed===0?'not started yet':(diff>=0?money(diff)+' ahead of pace':money(-diff)+' behind pace')));
   else meta='Anticipated '+money(o.ant)+' · '+(res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace'));
   const bad=income?(finished&&o.act<o.ant-0.005):over;
+  const stillTxt=income?'Still expected this window: ':'Still expected this window: ';
   return '<div class="balance-card"><div class="label">'+esc(o.label)+'<\/div>'+
     '<div class="amount'+(bad?' over':'')+'">'+money(o.act)+'<\/div>'+
     '<div class="meta">'+meta+'<\/div>'+
-    '<div class="ptrack"><div class="pfill" style="width:'+p(o.act).toFixed(2)+'%;background:'+col+'"><\/div>'+m+'<\/div>'+
+    '<div class="ptrack"'+(row2?' style="margin-bottom:84px"':'')+'><div class="pfill" style="width:'+p(o.act).toFixed(2)+'%;background:'+col+'"><\/div>'+m+'<\/div>'+
+    '<div class="meta" style="margin-top:0;">'+stillTxt+'<b>'+money(still)+'<\/b> · projected end <b style="color:#2dd4bf">'+money(proj)+'<\/b><\/div>'+
     (o.foot?'<div class="meta" style="font-size:11px;">'+o.foot+'<\/div>':'')+'<\/div>';
 }
 function anaRentNote(res){
@@ -2519,15 +2548,16 @@ function anaRentNote(res){
   const nice=d=>MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate();
   return 'Rent '+money(res.rentPer)+' is due '+res.rentDates.map(nice).join(', ')+'.';
 }
-function anaRowInc(name,ant,act){
+function stillTxt(v){ return (v===undefined||v===null)?'':' · Still expected '+money(v); }
+function anaRowInc(name,ant,act,still){
   const d=act-ant;
   const cls=d>=-0.005?'badge-good':'badge-warn';
-  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Expected '+money(ant)+' · Received '+money(act)+'<\/div><\/div><div class="badge '+cls+'">'+(d>=0?'+':'')+money(d)+'<\/div><\/div>';
+  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Budgeted '+money(ant)+' · Received '+money(act)+stillTxt(still)+'<\/div><\/div><div class="badge '+cls+'">'+(d>=0?'+':'')+money(d)+'<\/div><\/div>';
 }
-function anaRow(name,ant,act){
+function anaRow(name,ant,act,still){
   const left=ant-act;
   const cls=left<-0.005?'badge-bad':(ant>0&&act/ant>0.75?'badge-warn':'badge-good');
-  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Anticipated '+money(ant)+' · Actual '+money(act)+'<\/div><\/div><div class="badge '+cls+'">'+money(left)+'<\/div><\/div>';
+  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Anticipated '+money(ant)+' · Actual '+money(act)+stillTxt(still)+'<\/div><\/div><div class="badge '+cls+'">'+money(left)+'<\/div><\/div>';
 }
 function kv(a,b,strong){ return '<div class="kv'+(strong?' strong':'')+'"><span>'+esc(a)+'<\/span><span>'+b+'<\/span><\/div>'; }
 
@@ -2541,24 +2571,24 @@ function renderAnalysis(){
   if(res.histWeeks) out.push('<div class="status-banner info">'+SVG_INFO+'<span>'+res.histWeeks+' week'+(res.histWeeks>1?'s':'')+' of this window come from History (weekly totals, split by day when a week is only partly inside the window).<\/span><\/div>');
   if(res.missingWeeks>0) out.push('<div class="status-banner warn">'+SVG_WARN+'<span>'+res.missingWeeks+' week'+(res.missingWeeks>1?'s':'')+' in this window have no tab or History column, so they count as $0.<\/span><\/div>');
   if(view==='All'){
-    out.push(anaBar({label:'Spent, all types',ant:res.total.ant,act:res.total.act,should:res.total.should,after:res.afterAll,res,foot:anaRentNote(res)}));
+    out.push(anaBar({label:'Spent, all types',ant:res.total.ant,act:res.total.act,should:res.total.should,still:res.total.still,after:res.afterAll,res,foot:anaRentNote(res)}));
     out.push('<div class="card" style="padding:16px 16px 4px;"><div class="section-title">Anticipated vs actual<\/div>'+
-      GROUPS.map(g=>anaRow(g,res.groups[g].ant,res.groups[g].act)).join('')+
-      anaRow('Combined total',res.total.ant,res.total.act)+'<\/div>');
-    out.push(anaBar({label:'Income received',ant:res.income.ant,act:res.income.act,should:res.income.should,income:true,res}));
+      GROUPS.map(g=>anaRow(g,res.groups[g].ant,res.groups[g].act,res.groups[g].still)).join('')+
+      anaRow('Combined total',res.total.ant,res.total.act,res.total.still)+'<\/div>');
+    out.push(anaBar({label:'Income received',ant:res.income.ant,act:res.income.act,should:res.income.should,still:res.income.still,income:true,res}));
   }else if(view==='Income'){
     const o=res.income;
-    out.push(anaBar({label:'Income received',ant:o.ant,act:o.act,should:o.should,income:true,res}));
+    out.push(anaBar({label:'Income received',ant:o.ant,act:o.act,should:o.should,still:o.still,income:true,res}));
     let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By income source<\/div>';
-    o.rows.forEach(r=>{ h+=anaRowInc(r.name,r.ant,r.act); });
+    o.rows.forEach(r=>{ h+=anaRowInc(r.name,r.ant,r.act,r.still); });
     if(Math.abs(o.other)>=0.005) h+=anaRowInc('Other / unlisted',0,o.other);
     if(!o.rows.length&&Math.abs(o.other)<0.005) h+='<div class="empty">No income sources found in Money Allocation<\/div>';
     out.push(h+'<\/div>');
   }else{
     const o=res.groups[view];
-    out.push(anaBar({label:'Spent · '+view,ant:o.ant,act:o.act,should:o.should,after:view==='Spend'?res.afterSpend:null,res,foot:view==='Spend'?anaRentNote(res):''}));
+    out.push(anaBar({label:'Spent · '+view,ant:o.ant,act:o.act,should:o.should,still:o.still,after:view==='Spend'?res.afterSpend:null,res,foot:view==='Spend'?anaRentNote(res):''}));
     let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By '+(view==='Swipes'?'source':'category')+'<\/div>';
-    o.rows.forEach(r=>{ h+=anaRow(r.name,r.ant,r.act); });
+    o.rows.forEach(r=>{ h+=anaRow(r.name,r.ant,r.act,r.still); });
     if(Math.abs(o.other)>=0.005) h+=anaRow('Uncategorized / other',0,o.other);
     if(!o.rows.length&&Math.abs(o.other)<0.005) h+='<div class="empty">Nothing here yet<\/div>';
     out.push(h+'<\/div>');
