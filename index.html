@@ -249,6 +249,21 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 .section-title{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:0.8px;text-transform:uppercase;margin:0 0 12px;}
 .empty{text-align:center;padding:28px;color:var(--ink3);font-size:14px;}
 .muted{color:var(--ink2);font-size:13px;}
+.field-row>*{min-width:0;}
+.field input[type=date]{min-width:0;max-width:100%;}
+.badge-neutral{background:var(--surface2);color:var(--ink);}
+.pocket-row.dim .name,.pocket-row.dim .sub{opacity:0.5;}
+.pocket-row.dim .badge{opacity:0.5;}
+.pace-track{height:10px;border-radius:6px;background:var(--surface3);position:relative;overflow:hidden;margin:12px 0 6px;}
+.pace-fill{height:100%;border-radius:6px;background:var(--accent-text);}
+.pace-fill.warn{background:var(--warn-text);}
+.pace-fill.bad{background:var(--danger-text);}
+.pace-mark{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:0.75;}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.kv:last-child{border-bottom:none;}
+.kv span:last-child{font-family:var(--mono);white-space:nowrap;}
+.kv.strong{font-weight:700;}
+.hint{font-size:12px;color:var(--ink3);margin-top:6px;line-height:1.4;}
 </style>
 </head>
 <body>
@@ -311,10 +326,11 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
           </div>
         </div>
         <div class="field" id="sourceFieldWrap">
-          <label for="pocket">Source <span style="font-weight:400;color:var(--ink3);text-transform:none;">(optional)</span></label>
+          <label for="pocket" id="pocketLabel">Source <span style="font-weight:400;color:var(--ink3);text-transform:none;">(optional)</span></label>
           <select id="pocket">
             <option value="">— unassigned —</option>
           </select>
+          <div class="hint" id="pocketHint" style="display:none;"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
           <button class="btn btn-primary" id="saveBtnReview">Save &amp; Review</button>
@@ -326,12 +342,25 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <!-- SUMMARY -->
     <div class="panel" id="panel-summary">
       <div class="balance-card">
-        <div class="label">Total left in Swipes</div>
+        <div class="label">Spent this week, all types</div>
+        <div class="amount" id="overallTotal">$0.00</div>
+        <div class="meta" id="overallMeta">Swipes $0 · Spend $0 · Savings $0</div>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="sumView">Show</label>
+        <select id="sumView">
+          <option value="Swipes">Swipes</option>
+          <option value="Spend">Spend</option>
+          <option value="Savings">Savings</option>
+        </select>
+      </div>
+      <div class="balance-card">
+        <div class="label" id="bigLabel">Total left in Swipes</div>
         <div class="amount" id="bigTotal">$0.00</div>
         <div class="meta" id="bigMeta">Budgeted $0 · Spent $0</div>
       </div>
       <div class="card" style="padding:16px 16px 4px;">
-        <div class="section-title">By Source</div>
+        <div class="section-title" id="sumTitle">By Source</div>
         <div id="summaryRows"></div>
       </div>
     </div>
@@ -372,8 +401,17 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       <div id="sourcesBanner"></div>
       <div class="card" style="padding:14px 14px 10px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div class="section-title" style="margin:0;">Swipes Budget by Source</div>
+          <div class="section-title" style="margin:0;" id="srcTitle">Swipes Budget by Source</div>
         </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label for="srcGroup">Group</label>
+          <select id="srcGroup">
+            <option value="Swipes">Swipes</option>
+            <option value="Spend">Spend</option>
+            <option value="Savings">Savings</option>
+          </select>
+        </div>
+        <div class="hint" id="srcNote" style="display:none;margin:-4px 0 10px;"></div>
         <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:100%;">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
@@ -397,7 +435,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       </div>
     </div>
 
-    <!-- PLANNER -->
+    <!-- PLANNER (disabled in v1.7.0 - remove this comment and the matching ones in the nav and script to bring it back)
     <div class="panel" id="panel-planner">
       <div id="plannerBanner"></div>
       <div class="card">
@@ -436,9 +474,43 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       </div>
     </div>
 
+    END PLANNER -->
+
+    <!-- ANALYSIS -->
+    <div class="panel" id="panel-analysis">
+      <div id="analysisBanner"></div>
+      <div class="card">
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0;">
+            <label for="anaStart">Start</label>
+            <input id="anaStart" name="ana-start" type="date"/>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label for="anaEnd">End (not included)</label>
+            <input id="anaEnd" name="ana-end" type="date"/>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:12px;">
+          <div class="field" style="margin-bottom:0;">
+            <label for="anaView">Show</label>
+            <select id="anaView">
+              <option value="All">All</option>
+              <option value="Swipes">Swipes</option>
+              <option value="Spend">Spend</option>
+              <option value="Savings">Savings</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;">
+            <button class="btn btn-secondary" id="anaReset" style="padding:13px 10px;">This month</button>
+          </div>
+        </div>
+      </div>
+      <div id="anaBody"></div>
+    </div>
+
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.6.0</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.0</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -456,9 +528,15 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
       Sources
     </button>
+    <!-- PLANNER nav button (disabled in v1.7.0)
     <button class="nav-btn" data-panel="planner">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Planner
+    </button>
+    END PLANNER nav button -->
+    <button class="nav-btn" data-panel="analysis">
+      <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>
+      Analysis
     </button>
   </nav>
 </div>
@@ -469,6 +547,34 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.7.0 - Log Spend and Savings entries with a required category (Add tab).
+//          Category lists always come from Money Allocation: Swipes B6:B20,
+//          Spend B22:B28, Savings B30:B39. Savings entries: positive = spent
+//          out of the category, negative = money added. Names must be unique
+//          across all three groups. Summary has a new "Spent this week, all
+//          types" card plus a Swipes / Spend / Savings dropdown (Spend and
+//          Savings show amount spent by category, missing categories show as
+//          Uncategorized). Ledger Source dropdown lists all three groups and
+//          sets the entry type. Sources tab has a group dropdown that edits
+//          Money Allocation (Swipes and Savings: names + amounts; Spend: names
+//          only, the amounts are formulas, and a new Spend row gets the formula
+//          copied in). Planner tab is commented out (HTML, nav button, script)
+//          so it can be switched back on. New Analysis tab: pick a start and
+//          end date (defaults to this month), view All / Swipes / Spend /
+//          Savings as anticipated (Money Allocation allowance x days / 7) vs
+//          actual (entries by date), plus where cash + savings should be at the
+//          end and the projected rest of the window. Weekly tabs: the app
+//          writes the Monday date into O1 (and R1 = O1+7 if empty); live weeks
+//          (next week back to two weeks ago) are chained, so each tab's
+//          Starting Values (column O) are formulas pointing at the previous
+//          week's New Values (column R); tabs older than two weeks are frozen
+//          into plain numbers once (the app marks tabs in cell P1: linked,
+//          anchor, frozen). The oldest live tab is the anchor: type true
+//          balances into its column O by hand. History archive/prune is now
+//          layout-agnostic (finds groups and totals by label, adds rows above
+//          a group's Total when it is full) so old and new weekly layouts both
+//          archive correctly.
 //
 // v1.6.0 - Old weekly tabs are now archived and pruned automatically. On every
 //          refresh the app finds week tabs older than 12 weeks (it keeps the 12
@@ -519,12 +625,22 @@ const HISTORY_TAB   = 'History';
 const LONGTERM_TAB  = 'Long Term';
 const KEEP_WEEKS_BACK = 12;
 // Swipes sources start at row 6 in Money Allocation
-// App dynamically scans until it finds a SUM formula row or hits MAX_SOURCE_ROW
-const SOURCE_START_ROW = 6;
-const MAX_SOURCE_ROW   = 40; // safety cap - scan will not go beyond this
+// (all three groups are read from fixed slot ranges, see GROUP_DEF below)
+// Money Allocation layout: group -> slot rows (col B names, col S amounts, totals in S)
+const GROUPS=['Swipes','Spend','Savings'];
+const GROUP_DEF={
+  Swipes:{first:6,last:20,total:21,editAmt:true},
+  Spend:{first:22,last:28,total:29,editAmt:false},
+  Savings:{first:30,last:39,total:40,editAmt:true}
+};
+const MA="'Money Allocation'!";
+const PLAN_TEMPLATE='Plan Template';   // (Planner is commented out, tab order still pins this)
+const MARK_CELL='P1';                  // weekly tab marker: linked / anchor / frozen
+const FREEZE_AFTER_WEEKS=2;            // tabs older than this many weeks become plain values
+function emptyCats(){ const c={}; GROUPS.forEach(g=>{ c[g]={pockets:[],totalSlots:0,filledSlots:0,empty:[]}; }); return c; }
 
 // -- STATE ---------------------------------------------------------------------
-let state = { entries:[], pockets:[], totalSlots:0, filledSlots:0 };
+let state = { entries:[], pockets:[], cats:emptyCats(), totalSlots:0, filledSlots:0, srcGroup:'Swipes' };
 let accessToken  = null;
 let currentTabName = '';
 let sheetLoaded  = false;
@@ -533,6 +649,12 @@ let silentRefreshTimer = null;
 // -- PERSIST -------------------------------------------------------------------
 function loadLocal(){
   try{ const r=localStorage.getItem(STORE); if(r) state=JSON.parse(r); }catch(e){}
+  if(!state||typeof state!=='object') state={};
+  state.entries=state.entries||[]; state.pockets=state.pockets||[];
+  if(!state.cats) state.cats=emptyCats();
+  GROUPS.forEach(g=>{ if(!state.cats[g]) state.cats[g]={pockets:[],totalSlots:0,filledSlots:0,empty:[]}; if(!state.cats[g].empty) state.cats[g].empty=[]; });
+  if(!state.cats.Swipes.pockets.length&&state.pockets.length) state.cats.Swipes.pockets=state.pockets;
+  state.srcGroup=state.srcGroup||'Swipes';
 }
 function saveLocal(){ localStorage.setItem(STORE,JSON.stringify(state)); }
 function saveToken(t,expiresIn){
@@ -555,6 +677,29 @@ function money(n){ return Number(n||0).toLocaleString('en-US',{style:'currency',
 function num(v){ const p=parseFloat(String(v||'').replace(/[^0-9.\-]/g,'')); return isFinite(p)?p:0; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ var s2=String(s||''); s2=s2.split('&').join('&amp;'); s2=s2.split('<').join('&lt;'); s2=s2.split('>').join('&gt;'); s2=s2.split('"').join('&quot;'); return s2; }
+
+function catsOf(g){ return (state.cats&&state.cats[g]&&state.cats[g].pockets)||[]; }
+function groupOfName(n){
+  const k=String(n||'').trim().toLowerCase();
+  if(!k) return '';
+  for(const g of GROUPS){ if(catsOf(g).some(p=>String(p.name).toLowerCase()===k)) return g; }
+  return '';
+}
+function entryGroup(e){
+  const a=String((e&&e.account)||'').trim().toLowerCase();
+  if(a==='spend') return 'Spend';
+  if(a==='savings') return 'Savings';
+  return 'Swipes';
+}
+function applySources(r){
+  state.cats=r.cats;
+  state.pockets=r.cats.Swipes.pockets;
+  state.totalSlots=r.cats.Swipes.totalSlots;
+  state.filledSlots=r.cats.Swipes.filledSlots;
+}
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; }
+function daysBetween(a,b){ return Math.round((b.getTime()-a.getTime())/86400000); }
+function mdyyyy(d){ return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 
 function getMondayOf(date){
   const d=new Date(date);
@@ -634,7 +779,8 @@ function switchTo(name){
   else if(name==='pockets') refreshSources();
   else if(name==='summary') doFullRefresh();
   else if(name==='add') doFullRefresh();
-  else if(name==='planner') loadPlannerPanel();
+  else if(name==='analysis') loadAnalysis();
+  // else if(name==='planner') loadPlannerPanel();   // Planner disabled in v1.7.0
 }
 navBtns.forEach(b=>b.addEventListener('click',()=>switchTo(b.dataset.panel)));
 
@@ -823,58 +969,63 @@ async function loadEntriesFromTab(tab){
     .map(r=>({id:uid(),date:r[0]||'',item:r[1]||'',account:r[2]||'',pocket:r[3]||'',cost:num(r[4])}));
 }
 
-// Dynamically detect source slots in Money Allocation
-// Reads col B (names) and col S (amounts) starting at SOURCE_START_ROW
-// Stops when it hits a row where col S contains a SUM formula string OR col B is empty for 3+ consecutive rows
-// Returns { pockets, totalSlots, filledSlots }
+// Reads all three groups from Money Allocation in one pass:
+//   Swipes B6:B20 (total S21), Spend B22:B28 (total S29), Savings B30:B39 (total S40)
+// Each group returns { pockets, totalSlots, filledSlots, empty:[{row,hasFormula}] }
 async function loadSourcesFromSheet(){
-  const endRow=SOURCE_START_ROW+30; // read a generous window
-  const range=encodeURIComponent("'Money Allocation'!B"+SOURCE_START_ROW+":S"+endRow);
-  const data=await sheetsReq('GET','/values/'+range+'?valueRenderOption=UNFORMATTED_VALUE');
+  const data=await sheetsReq('GET','/values/'+encodeURIComponent(MA+'B6:S40')+'?valueRenderOption=UNFORMATTED_VALUE');
   const rows=data.values||[];
-
-  // Also get formula info to detect the SUM boundary row
-  const fRange=encodeURIComponent("'Money Allocation'!S"+SOURCE_START_ROW+":S"+endRow);
-  const fData=await sheetsReq('GET','/values/'+fRange+'?valueRenderOption=FORMULA');
-  const formulas=(fData.values||[]);
-
-  const pockets=[];
-  let totalSlots=0;
-  let consecutiveEmpty=0;
-
-  for(let i=0;i<rows.length;i++){
-    const absRow=SOURCE_START_ROW+i;
-    const bVal=rows[i]?rows[i][0]:undefined;
-    const sFormula=formulas[i]?formulas[i][0]:'';
-
-    // Stop if we hit a SUM formula — this is the boundary row, not a slot
-    if(typeof sFormula==='string'&&sFormula.toUpperCase().includes('SUM(')) break;
-    // Stop if we've exceeded safety cap
-    if(absRow>MAX_SOURCE_ROW) break;
-
-    // Every row before the SUM boundary counts as a slot
-    totalSlots++;
-    if(bVal&&String(bVal).trim()){
-      const amount=num(rows[i][17]); // col S is index 17 in B:S slice
-      pockets.push({id:'src'+absRow,row:absRow,name:String(bVal).trim(),amount});
+  const fData=await sheetsReq('GET','/values/'+encodeURIComponent(MA+'S6:S40')+'?valueRenderOption=FORMULA');
+  const fm=fData.values||[];
+  const cats={};
+  GROUPS.forEach(g=>{
+    const d=GROUP_DEF[g];
+    const pockets=[], empty=[];
+    let slots=0;
+    for(let r=d.first;r<=d.last;r++){
+      const i=r-6;
+      slots++;
+      const row=rows[i]||[];
+      const nm=(row[0]!==undefined&&row[0]!==null)?String(row[0]).trim():'';
+      const f=(fm[i]||[])[0];
+      const hasF=(typeof f==='string'&&f.charAt(0)==='=');
+      if(nm) pockets.push({id:'src'+r,row:r,name:nm,amount:num(row[17]),group:g,hasFormula:hasF});
+      else empty.push({row:r,hasFormula:hasF});
     }
-    // Empty rows still count as slots — do not break early
-  }
+    cats[g]={pockets,totalSlots:slots,filledSlots:pockets.length,empty};
+  });
+  return {cats};
+}
 
-  return {pockets, totalSlots, filledSlots:pockets.length};
+// Spend amounts (S22:S28) are SUMIF formulas. When a new Spend category goes into a
+// row that has no formula yet, copy one down from a row that has one.
+async function ensureSpendFormula(row){
+  const g=state.cats.Spend;
+  const slot=g.empty.find(s=>s.row===row);
+  if(slot&&slot.hasFormula) return;
+  const donor=g.pockets.concat(g.empty).find(p=>p.hasFormula&&p.row!==row);
+  if(!donor) return;
+  const meta=await sheetsReq('GET','?fields=sheets.properties(sheetId,title)');
+  const ma=(meta.sheets||[]).map(s=>s.properties).find(p=>p.title==='Money Allocation');
+  if(!ma) return;
+  await sheetsReq('POST',':batchUpdate',{requests:[{copyPaste:{
+    source:{sheetId:ma.sheetId,startRowIndex:donor.row-1,endRowIndex:donor.row,startColumnIndex:18,endColumnIndex:19},
+    destination:{sheetId:ma.sheetId,startRowIndex:row-1,endRowIndex:row,startColumnIndex:18,endColumnIndex:19},
+    pasteType:'PASTE_FORMULA'
+  }}]});
 }
 
 async function writeSourceAmount(row,amount){
-  const range=encodeURIComponent("'Money Allocation'!S"+row);
+  const range=encodeURIComponent(MA+'S'+row);
   await sheetsReq('PUT','/values/'+range+'?valueInputOption=USER_ENTERED',{
-    range:"'Money Allocation'!S"+row, values:[[amount]]
+    range:MA+'S'+row, values:[[amount]]
   });
 }
 
 async function writeSourceName(row,name){
-  const range=encodeURIComponent("'Money Allocation'!B"+row);
+  const range=encodeURIComponent(MA+'B'+row);
   await sheetsReq('PUT','/values/'+range+'?valueInputOption=USER_ENTERED',{
-    range:"'Money Allocation'!B"+row, values:[[name]]
+    range:MA+'B'+row, values:[[name]]
   });
 }
 
@@ -926,6 +1077,46 @@ function colLetter(n){ // 1-based column number to letters
   return s;
 }
 
+// Reads a weekly tab's G:H columns (group marker + name) into a layout list. Works for
+// both the old layout (Spend 22-25, Savings 27-33) and the new one (Spend 22-28,
+// Savings 30-39): a group starts where column G has a name, and its total row is the
+// row where column H repeats the group name.
+function layoutFromRows(rows,startRow){
+  const out=[]; let grp='', open=false;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i]||[];
+    const gv=String(r[0]==null?'':r[0]).trim();
+    const hv=String(r[1]==null?'':r[1]).trim();
+    if(gv){ grp=gv; open=true; }
+    if(!open) continue;
+    const isTotal=!!hv&&hv.toLowerCase()===grp.toLowerCase();
+    out.push({row:startRow+i,group:grp,name:hv,total:isTotal});
+    if(isTotal) open=false;
+  }
+  return out;
+}
+async function parseWeekLayout(tab){
+  const d=await sheetsReq('GET','/values/'+encodeURIComponent("'"+tab+"'!G3:H80"));
+  return layoutFromRows(d.values||[],3);
+}
+
+// History tab: column A has group names on the first row of each group, column B
+// has category names, and the group ends at a row whose B says Total.
+function parseHistLayout(rows){
+  const groups={}; let g='', last=4;
+  for(let i=0;i<rows.length;i++){
+    const row=5+i;
+    const r=rows[i]||[];
+    const a=String(r[0]==null?'':r[0]).trim();
+    const b=String(r[1]==null?'':r[1]).trim();
+    if(a){ g=a.toLowerCase(); if(!groups[g]) groups[g]={labels:[],total:0}; }
+    if(!g) continue;
+    if(b.toLowerCase()==='total'){ groups[g].total=row; if(row>last) last=row; g=''; continue; }
+    groups[g].labels.push({row,name:b});
+  }
+  return {groups,last};
+}
+
 // Copies one weekly tab into a new column of the History tab (newest week on the
 // left, rows matched by category name). Returns 'archived' or 'exists'. Throws if
 // anything cannot be written or confirmed, so the caller will NOT delete the tab.
@@ -934,52 +1125,75 @@ async function archiveWeekToHistory(tab,d,histId){
   // 1. Where do the existing weeks sit? (dates in row 4 starting at column D)
   const hdrData=await sheetsReq('GET','/values/'+encodeURIComponent(hq+'D4:ZZ4')+'?valueRenderOption=UNFORMATTED_VALUE');
   const hdr=(hdrData.values&&hdrData.values[0])||[];
-  let insertAt=hdr.length; // default: after the last week already stored
+  let insertAt=hdr.length;
   for(let j=0;j<hdr.length;j++){
     const hd=cellToDate(hdr[j]);
     if(!hd){ insertAt=j; break; }
     if(hd.getTime()===d.getTime()) return 'exists';
     if(hd.getTime()<d.getTime()){ insertAt=j; break; }
   }
-  // 2. Read History category labels and the weekly tab values
-  const lab=await sheetsReq('GET','/values/'+encodeURIComponent(hq+'B5:B33'));
-  const labels=[];
-  for(let i=0;i<29;i++) labels.push(String(((lab.values||[])[i]||[])[0]||'').trim());
-  const wk=await sheetsReq('GET','/values/'+encodeURIComponent("'"+tab+"'!H6:L34")+'?valueRenderOption=UNFORMATTED_VALUE');
-  const rows=wk.values||[];
-  const getName=i=>String((rows[i]||[])[0]||'').trim();
-  const getVal=i=>{ const v=(rows[i]||[])[4]; return (typeof v==='number')?v:0; };
-  // 3. Build the column (History rows 5..33)
-  const col=new Array(29).fill('');
-  const newLabels={};
-  // [first weekly row, last weekly row, first History row, last History row]
-  const groups=[[6,20,5,19],[22,25,21,24],[27,33,26,32]];
-  groups.forEach(g=>{
-    for(let r=g[0];r<=g[1];r++){
-      const name=getName(r-6), v=getVal(r-6);
-      if(!name||Math.abs(v)<0.005) continue;
-      let hr=-1;
-      for(let h=g[2];h<=g[3];h++){ if(labels[h-5].toLowerCase()===name.toLowerCase()){ hr=h; break; } }
-      if(hr<0){
-        for(let h=g[2];h<=g[3];h++){ if(!labels[h-5]){ hr=h; break; } }
-        if(hr>=0){ labels[hr-5]=name; newLabels[hr]=name; }
-      }
-      if(hr<0) throw new Error('History has no free row for "'+name+'" ('+tab+')');
-      col[hr-5]=Math.round(((typeof col[hr-5]==='number'?col[hr-5]:0)+v)*100)/100;
+  // 2. Read the weekly tab (any layout) into groups of {name,value} plus group totals
+  const wk=await sheetsReq('GET','/values/'+encodeURIComponent("'"+tab+"'!G3:L80")+'?valueRenderOption=UNFORMATTED_VALUE');
+  const wrows=wk.values||[];
+  const layout=layoutFromRows(wrows.map(r=>[r[0],r[1]]),3);
+  const wg={};
+  layout.forEach(it=>{
+    const k=it.group.toLowerCase();
+    if(k!=='swipes'&&k!=='spend'&&k!=='savings') return;
+    const raw=(wrows[it.row-3]||[])[5];
+    const v=(typeof raw==='number')?raw:0;
+    if(!wg[k]) wg[k]={items:[],total:0};
+    if(it.total) wg[k].total=v;
+    else if(it.name&&it.name!=='0'&&Math.abs(v)>=0.005) wg[k].items.push({name:it.name,v});
+  });
+  // 3. Read the History layout; add rows above a group's Total when it is full
+  const readHist=async()=>{
+    const lab=await sheetsReq('GET','/values/'+encodeURIComponent(hq+'A5:B100'));
+    return parseHistLayout(lab.values||[]);
+  };
+  let hl=await readHist();
+  for(const k of ['swipes','spend','savings']){
+    const w=wg[k]; if(!w) continue;
+    const hg=hl.groups[k];
+    if(!hg||!hg.total) throw new Error('History has no '+k+' group with a Total row');
+    const unmatched=w.items.filter(it=>!hg.labels.some(l=>l.name&&l.name.toLowerCase()===it.name.toLowerCase()));
+    const free=hg.labels.filter(l=>!l.name).length;
+    const extra=unmatched.length-free;
+    if(extra>0){
+      await sheetsReq('POST',':batchUpdate',{requests:[{insertDimension:{
+        range:{sheetId:histId,dimension:'ROWS',startIndex:hg.total-1,endIndex:hg.total-1+extra},
+        inheritFromBefore:true
+      }}]});
+      hl=await readHist();
     }
-  });
-  // totals: weekly rows 21, 26, 34 -> History rows 20, 25, 33
-  [[21,20],[26,25],[34,33]].forEach(t=>{
-    const v=getVal(t[0]-6);
-    col[t[1]-5]=Math.abs(v)<0.005?'':Math.round(v*100)/100;
-  });
-  // 4. Insert a column at the right spot and write the values
+  }
+  // 4. Build the column (History rows 4..last)
+  const lastRow=hl.last;
+  const col=new Array(lastRow-4).fill('');   // index 0 = row 5
+  const newLabels={};
+  for(const k of ['swipes','spend','savings']){
+    const w=wg[k]; if(!w) continue;
+    const hg=hl.groups[k];
+    const used={};
+    w.items.forEach(it=>{
+      let hr=-1;
+      for(const l of hg.labels){ if(l.name&&l.name.toLowerCase()===it.name.toLowerCase()){ hr=l.row; break; } }
+      if(hr<0){
+        for(const l of hg.labels){ if(!l.name&&!used[l.row]){ hr=l.row; l.name=it.name; newLabels[hr]=it.name; break; } }
+      }
+      if(hr<0) throw new Error('History has no free row for "'+it.name+'" ('+tab+')');
+      used[hr]=true;
+      col[hr-5]=Math.round(((typeof col[hr-5]==='number'?col[hr-5]:0)+it.v)*100)/100;
+    });
+    col[hg.total-5]=Math.abs(w.total)<0.005?'':Math.round(w.total*100)/100;
+  }
+  // 5. Insert a column at the right spot and write the values
   await sheetsReq('POST',':batchUpdate',{requests:[{insertDimension:{
     range:{sheetId:histId,dimension:'COLUMNS',startIndex:3+insertAt,endIndex:4+insertAt},
     inheritFromBefore:false
   }}]});
   const L=colLetter(4+insertAt);
-  const rangeStr=hq+L+'4:'+L+'33';
+  const rangeStr=hq+L+'4:'+L+lastRow;
   const dateStr=(d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(-2);
   await sheetsReq('PUT','/values/'+encodeURIComponent(rangeStr)+'?valueInputOption=USER_ENTERED',{
     range:rangeStr, values:[[dateStr]].concat(col.map(v=>[v]))
@@ -988,12 +1202,12 @@ async function archiveWeekToHistory(tab,d,histId){
     const lr=hq+'B'+hr;
     await sheetsReq('PUT','/values/'+encodeURIComponent(lr)+'?valueInputOption=USER_ENTERED',{range:lr,values:[[newLabels[hr]]]});
   }
-  // 5. Read it back and confirm before anyone deletes the tab
+  // 6. Read it back and confirm before anyone deletes the tab
   const back=await sheetsReq('GET','/values/'+encodeURIComponent(rangeStr)+'?valueRenderOption=UNFORMATTED_VALUE');
   const bv=back.values||[];
   const bd=cellToDate((bv[0]||[])[0]);
   if(!bd||bd.getTime()!==d.getTime()) throw new Error('Could not confirm the History column for '+tab);
-  for(let i=0;i<29;i++){
+  for(let i=0;i<col.length;i++){
     const exp=(typeof col[i]==='number')?col[i]:0;
     const gotRaw=(bv[i+1]||[])[0];
     const got=(typeof gotRaw==='number')?gotRaw:0;
@@ -1035,6 +1249,120 @@ async function pruneOldWeeks(){
   return result;
 }
 
+// -- ACTIVE WEEK CHAIN + FREEZE ---------------------------------------------------
+// Active weeks (next week .. two weeks ago) are live: each tab's Starting Values
+// (column O) point at the previous week's New Values (column R). Older tabs are
+// frozen into plain numbers so history stays put and nothing chains forever.
+// Column P1 on each weekly tab holds a marker so the app never redoes a step:
+//   linked = chained by the app, anchor = oldest live tab (type true balances in
+//   its column O by hand), frozen = formulas already converted to values.
+async function chainTab(w,p){
+  const lays=await Promise.all([parseWeekLayout(w),parseWeekLayout(p)]);
+  const lw=lays[0], lp=lays[1];
+  const byName={}, byIdx={};
+  lp.filter(x=>!x.total).forEach(x=>{
+    const k=x.group.toLowerCase();
+    (byIdx[k]=byIdx[k]||[]).push(x);
+    if(x.name) byName[k+'|'+x.name.toLowerCase()]=x;
+  });
+  const cnt={};
+  const data=[];
+  lw.filter(x=>!x.total).forEach(x=>{
+    const k=x.group.toLowerCase();
+    const i=(cnt[k]===undefined)?0:cnt[k]+1; cnt[k]=i;
+    const src=x.name?byName[k+'|'+x.name.toLowerCase()]:(byIdx[k]||[])[i];
+    if(!src) return;
+    if(!x.name&&src.name) return;
+    data.push({range:"'"+w+"'!O"+x.row,values:[["='"+p+"'!R"+src.row]]});
+  });
+  if(data.length) await sheetsReq('POST','/values:batchUpdate',{valueInputOption:'USER_ENTERED',data});
+  return data.length;
+}
+
+async function freezeTab(title){
+  const q=encodeURIComponent("'"+title+"'!G1:AF80");
+  const f=encodeURIComponent('sheets.data.rowData.values(userEnteredValue,effectiveValue)');
+  const data=await sheetsReq('GET','?includeGridData=true&ranges='+q+'&fields='+f);
+  const dd=(((data.sheets||[])[0]||{}).data||[])[0]||{};
+  const rowData=dd.rowData||[];
+  const writes=[];
+  rowData.forEach((row,ri)=>{
+    (row.values||[]).forEach((cell,ci)=>{
+      const ue=cell.userEnteredValue;
+      if(!ue||ue.formulaValue===undefined) return;
+      const ev=cell.effectiveValue||{};
+      let v='';
+      if(ev.numberValue!==undefined) v=ev.numberValue;
+      else if(ev.stringValue!==undefined) v=ev.stringValue;
+      else if(ev.boolValue!==undefined) v=ev.boolValue;
+      writes.push({range:"'"+title+"'!"+colLetter(7+ci)+(1+ri),values:[[v]]});
+    });
+  });
+  for(let i=0;i<writes.length;i+=100){
+    await sheetsReq('POST','/values:batchUpdate',{valueInputOption:'RAW',data:writes.slice(i,i+100)});
+  }
+  // confirm nothing is still a formula before marking the tab frozen
+  const chk=await sheetsReq('GET','/values/'+encodeURIComponent("'"+title+"'!G1:AF80")+'?valueRenderOption=FORMULA');
+  const left=[].concat.apply([],(chk.values||[])).filter(c=>typeof c==='string'&&c.charAt(0)==='=').length;
+  if(left>0) throw new Error(left+' formulas still on '+title);
+  await putCell(title,MARK_CELL,'frozen');
+  return writes.length;
+}
+
+async function putCell(tab,cell,val){
+  const r="'"+tab+"'!"+cell;
+  await sheetsReq('PUT','/values/'+encodeURIComponent(r)+'?valueInputOption=USER_ENTERED',{range:r,values:[[val]]});
+}
+
+async function syncWeekTabs(){
+  const res={chained:0,frozen:0,errors:[]};
+  const meta=await sheetsReq('GET','?fields=sheets.properties(sheetId,title)');
+  const titles=(meta.sheets||[]).map(s=>s.properties.title);
+  const active=getWeekList().map(w=>w.name).reverse().filter(n=>titles.includes(n)); // oldest first
+  const monday=getMondayOf(new Date());
+  const freezeCut=addDays(monday,-FREEZE_AFTER_WEEKS*7);
+  const pruneCut=addDays(monday,-KEEP_WEEKS_BACK*7);
+  const toFreeze=titles.map(t=>({t,d:parseTabDate(t)}))
+    .filter(x=>x.d&&x.d.getTime()<freezeCut.getTime()&&x.d.getTime()>=pruneCut.getTime())
+    .sort((a,b)=>a.d-b.d).map(x=>x.t);
+  const ranges=active.map(n=>"'"+n+"'!O1:R1").concat(toFreeze.map(n=>"'"+n+"'!P1"));
+  if(!ranges.length) return res;
+  const qs=ranges.map(r=>'ranges='+encodeURIComponent(r)).join('&');
+  const br=await sheetsReq('GET','/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&'+qs);
+  const vr=br.valueRanges||[];
+  for(let i=0;i<active.length;i++){
+    const n=active[i], d=parseTabDate(n);
+    const row=(vr[i]&&vr[i].values&&vr[i].values[0])||[];
+    const mark=String(row[1]==null?'':row[1]).trim();
+    try{
+      const od=cellToDate(row[0]);
+      if(!od||od.getTime()!==d.getTime()){
+        await putCell(n,'O1',mdyyyy(d));
+        if(row[3]===undefined||row[3]==='') await putCell(n,'R1','=O1+7');
+      }
+      if(!mark){
+        const prev=tabName(addDays(d,-7));
+        if(i===0||!titles.includes(prev)){
+          await putCell(n,MARK_CELL,'anchor');
+        }else{
+          await chainTab(n,prev);
+          await putCell(n,MARK_CELL,'linked');
+          res.chained++;
+        }
+      }
+    }catch(e){ res.errors.push(n+': '+e.message); }
+  }
+  let doneF=0;
+  for(let j=0;j<toFreeze.length&&doneF<12;j++){
+    const v=vr[active.length+j];
+    const mk=String(((v&&v.values&&v.values[0])||[])[0]||'').trim();
+    if(mk==='frozen') continue;
+    try{ await freezeTab(toFreeze[j]); res.frozen++; doneF++; }
+    catch(e){ res.errors.push(toFreeze[j]+': '+e.message); }
+  }
+  return res;
+}
+
 // -- FULL REFRESH --------------------------------------------------------------
 async function doFullRefresh(){
   if(!accessToken) return;
@@ -1050,6 +1378,12 @@ async function doFullRefresh(){
       showBanner('addBanner','info','Created tab'+(tabResult.created.length>1?'s':'')+': '+tabResult.created.join(', '));
       setTimeout(()=>clearBanner('addBanner'),4000);
     }
+    // O1 dates, live chain for active weeks, freeze tabs older than 2 weeks
+    try{
+      const sr=await syncWeekTabs();
+      if(sr.errors.length) console.warn('Week sync issues:',sr.errors.join(' | '));
+      if(sr.frozen>0) showToast('Froze '+sr.frozen+' old week'+(sr.frozen>1?'s':'')+' into plain values','success');
+    }catch(e){ console.warn('Week sync failed:',e.message); }
     // Archive weeks older than 12 weeks into History, then delete them
     try{
       const pr=await pruneOldWeeks();
@@ -1065,9 +1399,7 @@ async function doFullRefresh(){
       loadSourcesFromSheet()
     ]);
     state.entries=entries;
-    state.pockets=srcResult.pockets;
-    state.totalSlots=srcResult.totalSlots;
-    state.filledSlots=srcResult.filledSlots;
+    applySources(srcResult);
     saveLocal(); sheetLoaded=true;
     buildPocketSelect(); renderAll();
     showToast('Synced ✓','success');
@@ -1098,14 +1430,14 @@ async function refreshSources(){
   setSpinner(true);
   try{
     const r=await loadSourcesFromSheet();
-    state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
+    applySources(r);
     saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
   }catch(e){ showToast('Sources sync error','err'); }
   finally{ setSpinner(false); _refreshLock=false; }
 }
 
 function setSpinner(on){ document.getElementById('refreshBtn').classList.toggle('spinning',on); }
-document.getElementById('refreshBtn').addEventListener('click',()=>doFullRefresh());
+document.getElementById('refreshBtn').addEventListener('click',()=>{ resetAnalysisDates(); doFullRefresh(); if(document.getElementById('panel-analysis').classList.contains('active')) setTimeout(loadAnalysis,3200); });
 
 // -- WEEK SELECT ---------------------------------------------------------------
 document.getElementById('weekSelect').addEventListener('change',async function(){
@@ -1128,30 +1460,37 @@ document.getElementById('weekSelect').addEventListener('change',async function()
 });
 
 // -- POCKET SELECT -------------------------------------------------------------
+// Source/category list follows the Type: Swipes sources are optional, Spend and
+// Savings categories are required. All lists come from Money Allocation.
 function buildPocketSelect(){
   const sel=document.getElementById('pocket');
+  const acct=document.getElementById('account').value;
+  const req=acct!=='Swipes';
   const cur=sel.value;
-  sel.innerHTML='<option value="">— unassigned —<\/option>';
-  state.pockets.forEach(p=>{
+  sel.innerHTML='<option value="">'+(req?'— choose a category —':'— unassigned —')+'<\/option>';
+  catsOf(acct).forEach(p=>{
     const o=document.createElement('option');
     o.value=p.name; o.textContent=p.name; sel.appendChild(o);
   });
-  if(state.pockets.some(p=>p.name===cur)) sel.value=cur;
+  if(catsOf(acct).some(p=>p.name===cur)) sel.value=cur;
+  document.getElementById('pocketLabel').innerHTML=(req?'Category':'Source')+' <span style="font-weight:400;color:var(--ink3);text-transform:none;">('+(req?'required':'optional')+')<\/span>';
+  const hint=document.getElementById('pocketHint');
+  if(acct==='Savings'){ hint.style.display='block'; hint.textContent='Positive = money spent out of the category. Negative = money added to it.'; }
+  else hint.style.display='none';
 }
 
-document.getElementById('account').addEventListener('change',function(){
-  document.getElementById('sourceFieldWrap').style.display=this.value==='Swipes'?'block':'none';
-});
+document.getElementById('account').addEventListener('change',function(){ buildPocketSelect(); });
 
 // -- SAVE EXPENSE --------------------------------------------------------------
 async function doSave(goTo){
   const item=document.getElementById('item').value.trim();
   const cost=num(document.getElementById('cost').value);
   const account=document.getElementById('account').value;
-  const pocket=account==='Swipes'?document.getElementById('pocket').value:'';
+  const pocket=document.getElementById('pocket').value;
   const tabName=document.getElementById('weekSelect').value;
   if(!item){ showToast('Enter what you paid for',''); return; }
   if(cost===0){ showToast('Enter a non-zero amount',''); return; }
+  if(account!=='Swipes'&&!pocket){ showToast('Choose a '+account+' category',''); return; }
   const entry={id:uid(),date:todayStr(),item,account,pocket,cost};
   const btnR=document.getElementById('saveBtnReview');
   const btnA=document.getElementById('saveBtnAnother');
@@ -1192,29 +1531,82 @@ function getSpentByPocket(){
   return m;
 }
 
-function renderSummary(){
-  const spent=getSpentByPocket();
-  const totalBudget=state.pockets.reduce((s,p)=>s+num(p.amount),0);
-  const totalSpent=state.entries.filter(e=>(e.account||'').toLowerCase()==='swipes').reduce((s,e)=>s+num(e.cost),0);
-  const remaining=totalBudget-totalSpent;
-  const el=document.getElementById('bigTotal');
-  el.textContent=money(remaining);
-  el.className='amount'+(remaining<0?' over':'');
-  document.getElementById('bigMeta').textContent='Budgeted '+money(totalBudget)+' · Spent '+money(totalSpent);
-  const rows=document.getElementById('summaryRows');
-  rows.innerHTML='';
-  state.pockets.forEach(p=>{
-    const b=num(p.amount),s=spent[p.name]||0,rem=b-s;
-    const pct=b>0?s/b:0;
-    const cls=rem<0?'badge-bad':pct>0.75?'badge-warn':'badge-good';
-    const div=document.createElement('div');
-    div.className='pocket-row';
-    div.innerHTML='<div><div class="name">'+esc(p.name)+'<\/div><div class="sub">Budget '+money(b)+' · Spent '+money(s)+'<\/div><\/div><div class="badge '+cls+'">'+money(rem)+'<\/div>';
-    rows.appendChild(div);
+// Spent this week per group and category. Entries with no (or an unknown) category
+// land in "unc" (shown as Uncategorized).
+function spentByGroupCat(){
+  const out={};
+  GROUPS.forEach(g=>{ out[g]={map:{},unc:0,total:0}; });
+  state.entries.forEach(e=>{
+    if(!(e.item||num(e.cost))) return;
+    const g=entryGroup(e), c=num(e.cost), o=out[g];
+    o.total+=c;
+    const nm=String(e.pocket||'').trim();
+    const hit=nm?catsOf(g).find(p=>p.name.toLowerCase()===nm.toLowerCase()):null;
+    if(hit) o.map[hit.name]=(o.map[hit.name]||0)+c; else o.unc+=c;
   });
+  return out;
 }
 
+function renderSummary(){
+  const sg=spentByGroupCat();
+  const all=GROUPS.reduce((s,g)=>s+sg[g].total,0);
+  document.getElementById('overallTotal').textContent=money(all);
+  document.getElementById('overallMeta').textContent=GROUPS.map(g=>g+' '+money(sg[g].total)).join(' · ');
+  const view=document.getElementById('sumView').value||'Swipes';
+  const rows=document.getElementById('summaryRows');
+  rows.innerHTML='';
+  const el=document.getElementById('bigTotal');
+  if(view==='Swipes'){
+    const spent=getSpentByPocket();
+    const totalBudget=state.pockets.reduce((s,p)=>s+num(p.amount),0);
+    const totalSpent=sg.Swipes.total;
+    const remaining=totalBudget-totalSpent;
+    document.getElementById('bigLabel').textContent='Total left in Swipes';
+    el.textContent=money(remaining);
+    el.className='amount'+(remaining<0?' over':'');
+    document.getElementById('bigMeta').textContent='Budgeted '+money(totalBudget)+' · Spent '+money(totalSpent);
+    document.getElementById('sumTitle').textContent='By Source';
+    state.pockets.forEach(p=>{
+      const b=num(p.amount),s=spent[p.name]||0,rem=b-s;
+      const pct=b>0?s/b:0;
+      const cls=rem<0?'badge-bad':pct>0.75?'badge-warn':'badge-good';
+      const div=document.createElement('div');
+      div.className='pocket-row';
+      div.innerHTML='<div><div class="name">'+esc(p.name)+'<\/div><div class="sub">Budget '+money(b)+' · Spent '+money(s)+'<\/div><\/div><div class="badge '+cls+'">'+money(rem)+'<\/div>';
+      rows.appendChild(div);
+    });
+    return;
+  }
+  const o=sg[view];
+  const list=catsOf(view);
+  document.getElementById('bigLabel').textContent='Spent this week · '+view;
+  el.textContent=money(o.total);
+  el.className='amount';
+  document.getElementById('bigMeta').textContent=list.length+' categor'+(list.length===1?'y':'ies')+(view==='Savings'?' · negatives are money added':'');
+  document.getElementById('sumTitle').textContent='By Category';
+  const addRow=(name,amt)=>{
+    const div=document.createElement('div');
+    div.className='pocket-row'+(Math.abs(amt)<0.005?' dim':'');
+    div.innerHTML='<div><div class="name">'+esc(name)+'<\/div><div class="sub">Spent this week<\/div><\/div><div class="badge badge-neutral">'+money(amt)+'<\/div>';
+    rows.appendChild(div);
+  };
+  list.forEach(p=>addRow(p.name,o.map[p.name]||0));
+  if(Math.abs(o.unc)>=0.005) addRow('Uncategorized',o.unc);
+}
+document.getElementById('sumView').addEventListener('change',()=>renderSummary());
+
 // -- LEDGER --------------------------------------------------------------------
+// Source dropdown for the ledger: all three groups, picking one sets the entry type
+function ledgerOpts(){
+  let h='<option value="">—<\/option>';
+  GROUPS.forEach(g=>{
+    const l=catsOf(g);
+    if(!l.length) return;
+    h+='<optgroup label="'+g+'">'+l.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'<\/option>').join('')+'<\/optgroup>';
+  });
+  return h;
+}
+
 function renderLedger(){
   const body=document.getElementById('ledgerBody');
   body.innerHTML='';
@@ -1223,7 +1615,7 @@ function renderLedger(){
   if(!last||last.item||last.cost){
     state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
   }
-  const pocketOpts='<option value="">—<\/option>'+state.pockets.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'<\/option>').join('');
+  const pocketOpts=ledgerOpts();
   const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 4px;outline:none;overflow:hidden;text-overflow:ellipsis;';
   const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
 
@@ -1238,7 +1630,9 @@ function renderLedger(){
       '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
       '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7<\/button>':'')+'<\/td>';
     body.appendChild(tr);
-    tr.querySelector('[data-f="pocket"]').value=e.pocket||'';
+    const psel=tr.querySelector('[data-f="pocket"]');
+    if(e.pocket&&!groupOfName(e.pocket)){ const xo=document.createElement('option'); xo.value=e.pocket; xo.textContent=e.pocket; psel.appendChild(xo); }
+    psel.value=e.pocket||'';
   });
 
   body.querySelectorAll('[data-id]').forEach(el=>{
@@ -1247,6 +1641,7 @@ function renderLedger(){
       const entry=state.entries.find(x=>x.id===id);
       if(!entry) return;
       entry[f]=ev.target.value;
+      if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
       // Add new blank if last row is being filled
       const last=state.entries[state.entries.length-1];
       if(last.item||last.cost){
@@ -1259,6 +1654,7 @@ function renderLedger(){
       const entry=state.entries.find(x=>x.id===id);
       if(!entry) return;
       entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
+      if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
       saveLocal(); renderSummary(); renderPockets();
       if(accessToken&&sheetLoaded){
         try{ await rewriteEntries(currentTabName); showToast('Sheet updated','success'); }
@@ -1289,81 +1685,100 @@ document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
 
 
 // -- SOURCES -------------------------------------------------------------------
+// The group dropdown picks which part of Money Allocation is edited:
+//   Swipes / Savings: names (col B) and amounts (col S) are editable
+//   Spend: names only (col S holds SUMIF formulas, shown read-only)
+async function reloadSources(){
+  const r=await loadSourcesFromSheet();
+  applySources(r);
+  saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
+}
 
 function renderPockets(){
-  const spent=getSpentByPocket();
+  const g=state.srcGroup||'Swipes';
+  const def=GROUP_DEF[g];
+  const grp=(state.cats&&state.cats[g])||{pockets:[],totalSlots:0,filledSlots:0,empty:[]};
+  const sg=spentByGroupCat();
+  const spent=sg[g].map;
+  document.getElementById('srcGroup').value=g;
+  document.getElementById('srcTitle').textContent=g==='Swipes'?'Swipes Budget by Source':(g==='Spend'?'Spend Categories':'Savings Categories');
+  const note=document.getElementById('srcNote');
+  note.textContent=def.editAmt?'':'Spend amounts are formulas in Money Allocation, so only the names can be edited here.';
+  note.style.display=def.editAmt?'none':'block';
   const body=document.getElementById('sourceBody');
   body.innerHTML='';
-  const avail=state.totalSlots-state.filledSlots;
+  const avail=grp.totalSlots-grp.filledSlots;
   document.getElementById('slotInfo').textContent=
-    state.totalSlots>0?state.filledSlots+' of '+state.totalSlots+' source slots used ('+avail+' open)':'';
+    grp.totalSlots>0?grp.filledSlots+' of '+grp.totalSlots+' slots used ('+avail+' open)':'';
 
   const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 6px;outline:none;overflow:hidden;text-overflow:ellipsis;';
   const monoStyle=iStyle+'font-family:var(--mono);';
+  const roStyle='padding:9px 6px;font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:right;';
 
-  // Render filled sources
-  state.pockets.forEach(p=>{
+  grp.pockets.forEach(p=>{
     const s=spent[p.name]||0,rem=num(p.amount)-s;
     const color=rem<0?'var(--danger-text)':rem<num(p.amount)*0.25?'var(--warn-text)':'var(--accent-text)';
     const tr=document.createElement('tr');
     tr.style.borderBottom='1px solid var(--border)';
+    const amtCell=def.editAmt
+      ?'<td style="padding:0;"><input type="text" inputmode="decimal" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" name="src-amount" data-src-field="amount" style="'+monoStyle+'"/><\/td>'
+      :'<td style="'+roStyle+'">'+money(num(p.amount))+'<\/td>';
     tr.innerHTML=
       '<td style="padding:0;"><input value="'+esc(p.name)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" name="src-name" data-src-field="name" style="'+iStyle+'"/><\/td>'+
-      '<td style="padding:0;"><input type="text" inputmode="decimal" value="'+num(p.amount).toFixed(2)+'" data-src-row="'+p.row+'" data-src-id="'+p.id+'" name="src-amount" data-src-field="amount" style="'+monoStyle+'"/><\/td>'+
-      '<td style="padding:9px 6px;font-family:var(--mono);font-size:12px;color:var(--ink2);text-align:right;">'+money(s)+'<\/td>'+
+      amtCell+
+      '<td style="'+roStyle+'">'+money(s)+'<\/td>'+
       '<td style="padding:9px 6px;font-family:var(--mono);font-size:12px;color:'+color+';text-align:right;">'+money(rem)+'<\/td>'+
       '<td style="padding:0 6px;text-align:center;"><button class="del-btn" data-del-src-row="'+p.row+'" data-del-src-id="'+p.id+'">×<\/button><\/td>';
     body.appendChild(tr);
   });
 
-  // Blank row for adding new source (only if slots available)
   if(avail>0){
     const blankTr=document.createElement('tr');
     blankTr.innerHTML=
-      '<td style="padding:0;"><input id="newSrcName" placeholder="New source…" style="'+iStyle+'color:var(--ink3);"/><\/td>'+
-      '<td style="padding:0;"><input id="newSrcAmt" name="new-src-amount" type="text" inputmode="decimal" placeholder="0.00" style="'+monoStyle+'color:var(--ink3);"/><\/td>'+
+      '<td style="padding:0;"><input id="newSrcName" name="new-src-name" placeholder="'+(g==='Swipes'?'New source…':'New category…')+'" style="'+iStyle+'color:var(--ink3);"/><\/td>'+
+      (def.editAmt
+        ?'<td style="padding:0;"><input id="newSrcAmt" name="new-src-amount" type="text" inputmode="decimal" placeholder="0.00" style="'+monoStyle+'color:var(--ink3);"/><\/td>'
+        :'<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—<\/td>')+
       '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—<\/td>'+
       '<td style="padding:10px 8px;font-size:13px;color:var(--ink3);">—<\/td>'+
       '<td><\/td>';
     body.appendChild(blankTr);
 
-    // Wire blank row save on blur
     const nameInp=blankTr.querySelector('#newSrcName');
     const amtInp=blankTr.querySelector('#newSrcAmt');
+    let adding=false;
     async function tryAddSource(){
+      if(adding) return;
       const name=nameInp.value.trim();
-      const amount=num(amtInp.value);
+      const amount=amtInp?num(amtInp.value):0;
       if(!name) return;
-      if(state.pockets.some(p=>p.name.toLowerCase()===name.toLowerCase())){
-        showToast('Source "'+name+'" already exists','err'); nameInp.value=''; return;
+      if(groupOfName(name)){
+        showToast('"'+name+'" already exists (names must be unique)','err'); nameInp.value=''; if(amtInp) amtInp.value=''; return;
       }
-      const nextRow=SOURCE_START_ROW+state.filledSlots;
+      const slot=grp.empty[0];
+      if(!slot){ showToast('No open slots in '+g,'err'); return; }
+      adding=true;
       setSpinner(true);
       try{
-        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!B"+nextRow)+'?valueInputOption=USER_ENTERED',{
-          range:"'Money Allocation'!B"+nextRow,values:[[name]]
-        });
-        await sheetsReq('PUT','/values/'+encodeURIComponent("'Money Allocation'!S"+nextRow)+'?valueInputOption=USER_ENTERED',{
-          range:"'Money Allocation'!S"+nextRow,values:[[amount||0]]
-        });
-        const r=await loadSourcesFromSheet();
-        state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
-        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
-        showToast('Source "'+name+'" added','success');
-      }catch(e){ showToast('Could not add source: '+e.message,'err'); }
-      finally{ setSpinner(false); }
+        await writeSourceName(slot.row,name);
+        if(def.editAmt) await writeSourceAmount(slot.row,amount||0);
+        else await ensureSpendFormula(slot.row);
+        await reloadSources();
+        showToast('"'+name+'" added','success');
+      }catch(e){ showToast('Could not add: '+e.message,'err'); }
+      finally{ setSpinner(false); adding=false; }
     }
-    nameInp.addEventListener('blur',tryAddSource);
-    amtInp.addEventListener('blur',tryAddSource);
+    // With an amount box, add on leaving it (or when leaving the name box for somewhere else)
+    nameInp.addEventListener('blur',ev=>{ if(amtInp&&ev.relatedTarget===amtInp) return; tryAddSource(); });
+    if(amtInp) amtInp.addEventListener('blur',tryAddSource);
   }
 
-  // Wire existing source field changes
   body.querySelectorAll('[data-src-field]').forEach(input=>{
     input.addEventListener('change',async ev=>{
       const row=parseInt(ev.target.dataset.srcRow);
       const id=ev.target.dataset.srcId;
       const field=ev.target.dataset.srcField;
-      const p=state.pockets.find(x=>x.id===id);
+      const p=grp.pockets.find(x=>x.id===id);
       if(!p) return;
       if(field==='amount'){
         const val=num(ev.target.value);
@@ -1372,6 +1787,7 @@ function renderPockets(){
       } else if(field==='name'){
         const val=ev.target.value.trim();
         if(!val){ showToast('Name cannot be empty','err'); ev.target.value=p.name; return; }
+        if(val.toLowerCase()!==p.name.toLowerCase()&&groupOfName(val)){ showToast('"'+val+'" already exists (names must be unique)','err'); ev.target.value=p.name; return; }
         p.name=val; saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
         if(accessToken){ try{ await writeSourceName(row,val); showToast('Name updated','success'); }catch(e){ showToast('Sheet error','err'); } }
       }
@@ -1382,22 +1798,24 @@ function renderPockets(){
     btn.addEventListener('click',async()=>{
       const row=parseInt(btn.dataset.delSrcRow);
       const id=btn.dataset.delSrcId;
-      const p=state.pockets.find(x=>x.id===id);
+      const p=grp.pockets.find(x=>x.id===id);
       if(!p) return;
-      if(!confirm('Delete source "'+p.name+'"? This will clear it from Money Allocation.')) return;
+      if(!confirm('Delete "'+p.name+'"? This will clear it from Money Allocation.')) return;
       setSpinner(true);
       try{
-        await sheetsReq('POST','/values/'+encodeURIComponent("'Money Allocation'!B"+row)+':clear',{});
-        await sheetsReq('POST','/values/'+encodeURIComponent("'Money Allocation'!S"+row)+':clear',{});
-        const r=await loadSourcesFromSheet();
-        state.pockets=r.pockets; state.totalSlots=r.totalSlots; state.filledSlots=r.filledSlots;
-        saveLocal(); buildPocketSelect(); renderPockets(); renderSummary();
-        showToast('Source deleted','success');
+        await sheetsReq('POST','/values/'+encodeURIComponent(MA+'B'+row)+':clear',{});
+        if(def.editAmt) await sheetsReq('POST','/values/'+encodeURIComponent(MA+'S'+row)+':clear',{});
+        await reloadSources();
+        showToast('Deleted','success');
       }catch(e){ showToast('Could not delete: '+e.message,'err'); }
       finally{ setSpinner(false); }
     });
   });
 }
+
+document.getElementById('srcGroup').addEventListener('change',function(){
+  state.srcGroup=this.value; saveLocal(); renderPockets();
+});
 
 
 // -- RENDER ALL ----------------------------------------------------------------
@@ -1421,7 +1839,8 @@ function showToast(msg,type){
   clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2500);
 }
 
-// -- PLANNER -------------------------------------------------------------------
+// -- PLANNER (disabled in v1.7.0: remove the comment markers around this block to bring it back)
+/*
 let plannerItems = [];      // current plan's items
 let currentPlanName = '';   // e.g. "Brother Week"
 let currentPlanTab = '';    // e.g. "Brother Week Plan"
@@ -1618,6 +2037,264 @@ document.getElementById('newPlanBtn').addEventListener('click',async()=>{
   }catch(e){ showToast('Could not create plan: '+e.message,'err'); }
   finally{ setSpinner(false); }
 });
+
+*/
+
+// -- ANALYSIS ------------------------------------------------------------------
+// Anticipated = Money Allocation weekly allowances x days / 7.
+// Actual = logged entries dated inside the window (weekly tabs), with History
+// filling in weeks whose tab has already been archived.
+const ana={start:null,end:null,data:null,res:null,busy:false};
+
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseYmd(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'')); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
+function resetAnalysisDates(){
+  const n=new Date();
+  ana.start=new Date(n.getFullYear(),n.getMonth(),1);
+  ana.end=new Date(n.getFullYear(),n.getMonth()+1,1);
+  document.getElementById('anaStart').value=ymd(ana.start);
+  document.getElementById('anaEnd').value=ymd(ana.end);
+}
+
+// Pure math: everything the screen shows, from plain inputs (easy to test).
+// in: {start,end,today, allow:{g:[{name,amount}]}, takeHome,
+//      entries:[{date,group,pocket,cost}], hist:[{monday,byCat:{g:{name:v}}}],
+//      base:{d,total}|null}
+function analysisCompute(inp){
+  const days=Math.max(1,daysBetween(inp.start,inp.end));
+  const today=new Date(inp.today); today.setHours(0,0,0,0);
+  const elapsed=Math.max(0,Math.min(days,daysBetween(inp.start,addDays(today,1))));
+  const rest=days-elapsed;
+  const groups={};
+  let savOut=0;
+  GROUPS.forEach(g=>{
+    const rows=(inp.allow[g]||[]).map(p=>({name:p.name,ant:num(p.amount)*days/7,act:0}));
+    groups[g]={rows,other:0,ant:0,act:0,idx:{}};
+    rows.forEach(r=>{ groups[g].idx[r.name.toLowerCase()]=r; });
+  });
+  const add=(g,name,v)=>{
+    const o=groups[g], r=o.idx[String(name||'').toLowerCase()];
+    if(r) r.act+=v; else o.other+=v;
+  };
+  (inp.entries||[]).forEach(e=>{
+    if(!e.date||e.date.getTime()<inp.start.getTime()||e.date.getTime()>=inp.end.getTime()) return;
+    add(e.group,e.pocket,e.cost);
+    if(e.group==='Savings'&&e.cost>0) savOut+=e.cost;
+  });
+  (inp.hist||[]).forEach(h=>{
+    const ws=Math.max(h.monday.getTime(),inp.start.getTime());
+    const we=Math.min(addDays(h.monday,7).getTime(),inp.end.getTime());
+    const w=Math.max(0,Math.round((we-ws)/86400000))/7;
+    if(w<=0) return;
+    GROUPS.forEach(g=>{
+      const m=(h.byCat&&h.byCat[g])||{};
+      Object.keys(m).forEach(nm=>{ add(g,nm,m[nm]*w); if(g==='Savings'&&m[nm]>0) savOut+=m[nm]*w; });
+    });
+  });
+  GROUPS.forEach(g=>{
+    const o=groups[g];
+    o.ant=o.rows.reduce((s,r)=>s+r.ant,0);
+    o.act=o.rows.reduce((s,r)=>s+r.act,0)+o.other;
+  });
+  const total={ant:0,act:0};
+  GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; });
+  const incomeAnt=num(inp.takeHome)*days/7;
+  const spendAnt=groups.Swipes.ant+groups.Spend.ant;
+  const spendAct=groups.Swipes.act+groups.Spend.act+savOut;
+  const res={days,elapsed,rest,groups,total,incomeAnt,spendAnt,spendAct,savOut,
+    restIncome:num(inp.takeHome)*rest/7,
+    restSpend:spendAnt*rest/days,
+    restSave:groups.Savings.ant*rest/days,
+    start0:null,should:null,projected:null,baseApprox:false};
+  res.restLeft=res.restIncome-res.restSpend-res.restSave;
+  if(inp.base){
+    const gap=Math.max(0,daysBetween(inp.base.d,inp.start));
+    const perDay=(num(inp.takeHome)/7)-(spendAnt/days);
+    res.start0=inp.base.total+perDay*gap;
+    res.baseApprox=gap>0;
+    res.should=res.start0+incomeAnt-spendAnt;
+    res.projected=res.start0+incomeAnt-spendAct-(spendAnt*rest/days);
+  }
+  return res;
+}
+
+async function loadHistoryWeeks(mondays){
+  const hq="'"+HISTORY_TAB+"'!";
+  const rs=await Promise.all([
+    sheetsReq('GET','/values/'+encodeURIComponent(hq+'D4:ZZ100')+'?valueRenderOption=UNFORMATTED_VALUE'),
+    sheetsReq('GET','/values/'+encodeURIComponent(hq+'A5:B100'))
+  ]);
+  const vals=rs[0].values||[];
+  const hdr=vals[0]||[];
+  const lay=parseHistLayout(rs[1].values||[]);
+  const out=[];
+  mondays.forEach(m=>{
+    const j=hdr.findIndex(x=>{ const d=cellToDate(x); return d&&d.getTime()===m.getTime(); });
+    if(j<0) return;
+    const w={monday:m,byCat:{Swipes:{},Spend:{},Savings:{}}};
+    GROUPS.forEach(g=>{
+      const hg=lay.groups[g.toLowerCase()];
+      if(!hg) return;
+      hg.labels.forEach(lb=>{
+        if(!lb.name) return;
+        const v=(vals[lb.row-4]||[])[j];
+        if(typeof v==='number') w.byCat[g][lb.name]=v;
+      });
+    });
+    out.push(w);
+  });
+  return out;
+}
+
+async function loadAnalysis(){
+  if(!accessToken) return;
+  const body=document.getElementById('anaBody');
+  const s=ana.start, e=ana.end;
+  if(!s||!e||e.getTime()<=s.getTime()){
+    body.innerHTML='';
+    showBanner('analysisBanner','warn','Pick an end date after the start date.');
+    return;
+  }
+  if(daysBetween(s,e)>400){
+    body.innerHTML='';
+    showBanner('analysisBanner','warn','Pick a window of 400 days or less.');
+    return;
+  }
+  clearBanner('analysisBanner');
+  if(ana.busy) return;
+  ana.busy=true; setSpinner(true);
+  body.innerHTML='<div class="empty">Crunching your numbers…<\/div>';
+  try{
+    // categories + allowances (Money Allocation is the source of truth)
+    applySources(await loadSourcesFromSheet()); saveLocal();
+    const meta=await sheetsReq('GET','?fields=sheets.properties.title');
+    const titles=(meta.sheets||[]).map(x=>x.properties.title);
+    const tabs=titles.map(t=>({t,d:parseTabDate(t)})).filter(x=>x.d);
+    const m0=getMondayOf(s), m1=getMondayOf(addDays(e,-1));
+    const lo=addDays(m0,-7), hi=addDays(m1,7);
+    const use=tabs.filter(x=>x.d.getTime()>=lo.getTime()&&x.d.getTime()<=hi.getTime());
+    const baseTab=tabs.filter(x=>x.d.getTime()<=s.getTime()).sort((a,b)=>b.d-a.d)[0]||null;
+    const ranges=use.map(x=>"'"+x.t+"'!A3:E500").concat([MA+'I55']);
+    if(baseTab) ranges.push("'"+baseTab.t+"'!O3:O4");
+    const qs=ranges.map(r=>'ranges='+encodeURIComponent(r)).join('&');
+    const br=await sheetsReq('GET','/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&'+qs);
+    const vr=br.valueRanges||[];
+    const entries=[];
+    use.forEach((x,i)=>{
+      ((vr[i]&&vr[i].values)||[]).forEach(r=>{
+        if(!r||(!r[1]&&!r[4])) return;
+        const dt=cellToDate(r[0])||x.d;
+        entries.push({date:dt,group:entryGroup({account:r[2]}),pocket:String(r[3]==null?'':r[3]).trim(),cost:num(r[4])});
+      });
+    });
+    const takeHome=num((((vr[use.length]||{}).values||[[]])[0]||[])[0]);
+    let base=null;
+    if(baseTab&&daysBetween(baseTab.d,s)<=100){
+      const ov=((vr[use.length+1]||{}).values)||[];
+      const c=ov[0]?ov[0][0]:undefined, sv=ov[1]?ov[1][0]:undefined;
+      if(typeof c==='number'&&typeof sv==='number') base={d:baseTab.d,total:c+sv};
+    }
+    // weeks whose tab is gone come from History
+    const missing=[];
+    for(let m=new Date(m0);m.getTime()<=m1.getTime();m=addDays(m,7)){
+      if(!titles.includes(tabName(m))&&m.getTime()<=Date.now()) missing.push(new Date(m));
+    }
+    let hist=[];
+    if(missing.length&&titles.includes(HISTORY_TAB)){
+      try{ hist=await loadHistoryWeeks(missing); }catch(err){ console.warn('History read failed:',err.message); }
+    }
+    const allow={};
+    GROUPS.forEach(g=>{ allow[g]=catsOf(g).map(p=>({name:p.name,amount:p.amount})); });
+    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base});
+    ana.res.histWeeks=hist.length;
+    ana.res.missingWeeks=missing.length-hist.length;
+    renderAnalysis();
+  }catch(err){
+    body.innerHTML='';
+    showBanner('analysisBanner','error','Could not build the analysis: '+esc(err.message));
+  }finally{ ana.busy=false; setSpinner(false); }
+}
+
+function anaPaceCard(label,ant,act,res){
+  const toDate=ant*res.elapsed/res.days;
+  const pctFill=ant>0?Math.max(0,Math.min(100,act/ant*100)):(act>0?100:0);
+  const mark=Math.min(100,res.elapsed/res.days*100);
+  const cls=act<=toDate+0.005?'':(act<=ant+0.005?' warn':' bad');
+  const diff=act-toDate;
+  const pace=res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace');
+  return '<div class="balance-card"><div class="label">'+esc(label)+'<\/div>'+
+    '<div class="amount'+(act>ant+0.005?' over':'')+'">'+money(act)+'<\/div>'+
+    '<div class="meta">Anticipated '+money(ant)+' · '+pace+'<\/div>'+
+    '<div class="pace-track"><div class="pace-fill'+cls+'" style="width:'+pctFill.toFixed(1)+'%"><\/div><div class="pace-mark" style="left:'+mark.toFixed(1)+'%"><\/div><\/div>'+
+    '<div class="meta" style="font-size:11px;">Marker = where spending should be today ('+money(toDate)+')<\/div><\/div>';
+}
+function anaRow(name,ant,act){
+  const left=ant-act;
+  const cls=left<-0.005?'badge-bad':(ant>0&&act/ant>0.75?'badge-warn':'badge-good');
+  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Anticipated '+money(ant)+' · Actual '+money(act)+'<\/div><\/div><div class="badge '+cls+'">'+money(left)+'<\/div><\/div>';
+}
+function kv(a,b,strong){ return '<div class="kv'+(strong?' strong':'')+'"><span>'+esc(a)+'<\/span><span>'+b+'<\/span><\/div>'; }
+
+function renderAnalysis(){
+  const res=ana.res; if(!res) return;
+  const view=document.getElementById('anaView').value||'All';
+  const out=[];
+  const nice=d=>MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate();
+  const last=addDays(ana.end,-1);
+  out.push('<div class="muted" style="margin:0 2px 10px;">'+nice(ana.start)+' – '+nice(last)+' · '+res.days+' days · day '+Math.max(res.elapsed,0)+' of '+res.days+'<\/div>');
+  if(res.histWeeks) out.push('<div class="status-banner info">'+SVG_INFO+'<span>'+res.histWeeks+' week'+(res.histWeeks>1?'s':'')+' of this window come from History (weekly totals, split by day when a week is only partly inside the window).<\/span><\/div>');
+  if(res.missingWeeks>0) out.push('<div class="status-banner warn">'+SVG_WARN+'<span>'+res.missingWeeks+' week'+(res.missingWeeks>1?'s':'')+' in this window have no tab or History column, so they count as $0.<\/span><\/div>');
+  if(view==='All'){
+    out.push(anaPaceCard('Spent, all types',res.total.ant,res.total.act,res));
+    out.push('<div class="card" style="padding:16px 16px 4px;"><div class="section-title">Anticipated vs actual<\/div>'+
+      GROUPS.map(g=>anaRow(g,res.groups[g].ant,res.groups[g].act)).join('')+
+      anaRow('Combined total',res.total.ant,res.total.act)+'<\/div>');
+  }else{
+    const o=res.groups[view];
+    out.push(anaPaceCard('Spent · '+view,o.ant,o.act,res));
+    let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By '+(view==='Swipes'?'source':'category')+'<\/div>';
+    o.rows.forEach(r=>{ h+=anaRow(r.name,r.ant,r.act); });
+    if(Math.abs(o.other)>=0.005) h+=anaRow('Uncategorized / other',0,o.other);
+    if(!o.rows.length&&Math.abs(o.other)<0.005) h+='<div class="empty">Nothing here yet<\/div>';
+    out.push(h+'<\/div>');
+  }
+  // where we should be + rest of window
+  if(res.start0!==null){
+    let c='<div class="card"><div class="section-title">Where we should be (cash + savings)<\/div>';
+    c+=kv('Starting balance'+(res.baseApprox?' (estimated)':''),money(res.start0));
+    c+=kv('Expected income','+'+money(res.incomeAnt));
+    c+=kv('Planned spending (Swipes + Spend)','−'+money(res.spendAnt));
+    c+=kv('Should be at end',money(res.should),true);
+    const dv=res.projected-res.should;
+    c+=kv('Projected at your pace',money(res.projected),true);
+    c+=kv('vs plan',(dv>=0?'+':'−')+money(Math.abs(dv)));
+    c+='<div class="hint">Savings allocations stay in savings; only money spent out of a savings category lowers the balance. Income is assumed to arrive as planned.<\/div><\/div>';
+    out.push(c);
+  }else{
+    out.push('<div class="status-banner warn">'+SVG_WARN+'<span>No starting balance for this start date: the weekly tab that covers it has been archived, and History does not keep balances.<\/span><\/div>');
+  }
+  let r='<div class="card"><div class="section-title">Rest of this window ('+res.rest+' day'+(res.rest===1?'':'s')+' left)<\/div>';
+  r+=kv('Expected income','+'+money(res.restIncome));
+  r+=kv('Expected spending (Swipes + Spend)','−'+money(res.restSpend));
+  r+=kv('Planned to savings','−'+money(res.restSave));
+  r+=kv('Left over',money(res.restLeft),true);
+  out.push(r+'<\/div>');
+  document.getElementById('anaBody').innerHTML=out.join('');
+}
+
+function onAnaDates(){
+  const s=parseYmd(document.getElementById('anaStart').value);
+  const e=parseYmd(document.getElementById('anaEnd').value);
+  if(!s||!e) return;
+  ana.start=s; ana.end=e;
+  loadAnalysis();
+}
+document.getElementById('anaStart').addEventListener('change',onAnaDates);
+document.getElementById('anaEnd').addEventListener('change',onAnaDates);
+document.getElementById('anaView').addEventListener('change',()=>renderAnalysis());
+document.getElementById('anaReset').addEventListener('click',()=>{ resetAnalysisDates(); loadAnalysis(); });
+resetAnalysisDates();
+
 
 // -- GOOGLE IDENTITY -----------------------------------------------------------
 
