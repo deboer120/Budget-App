@@ -532,7 +532,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.3</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.4</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -570,6 +570,11 @@ td select{color-scheme:light dark;}
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
 //
+// v1.9.4 - Analysis balances are anchored on a known-true checkpoint (BAL_CP: Checking
+//          $576.00 + Savings Acct $10,747.00 on Nov 18, 2026) instead of the weekly-tab
+//          chain. Balance now = checkpoint + income - Swipes - Spend logged after the
+//          checkpoint date; the window's starting balance is worked from the checkpoint
+//          using logged entries. To re-anchor later, change BAL_CP.
 // v1.9.3 - Analysis starts from the real balance: when the window includes today, the
 //          current week's tab (R3 + R4, New Values) is the anchor and the starting
 //          balance is worked backward from it (balance now minus logged income plus
@@ -2362,6 +2367,28 @@ function analysisCompute(inp){
     start0:null,should:null,projected:null,baseApprox:false};
   res.restLeft=res.restIncome-res.restSpend-res.restSave;
   const nowD=new Date(inp.today); nowD.setHours(0,0,0,0);
+  const dk=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+  const netFlow=(from,to)=>{   // logged net cash change for entries with from <= day < to (day keys)
+    let t=0;
+    (inp.entries||[]).forEach(e=>{
+      if(!e.date) return; const k=dk(e.date);
+      if(k<from||k>=to) return;
+      if(e.group==='Income') t+=e.cost; else if(e.group==='Swipes'||e.group==='Spend') t-=e.cost;
+    });
+    return t;
+  };
+  if(inp.cp){
+    const cpK=dk(inp.cp.d), sK=dk(inp.start), tomK=dk(addDays(nowD,1));
+    res.curTotal=inp.cp.total+netFlow(dk(addDays(inp.cp.d,1)),tomK);
+    res.baseApprox=false;
+    res.start0=sK>cpK?inp.cp.total+netFlow(dk(addDays(inp.cp.d,1)),sK)
+                      :inp.cp.total-netFlow(sK,dk(addDays(inp.cp.d,1)));
+    res.should=res.start0+incomeAnt-spendAnt;
+    res.incomeLogged=inc.count>0;
+    res.projIncome=res.incomeLogged?(inc.act+res.restIncome):incomeAnt;
+    res.projected=res.start0+res.projIncome-spendAct-res.restSpend;
+    return res;
+  }
   const useCur=inp.cur&&typeof inp.cur.total==='number'&&inp.start.getTime()<=nowD.getTime()&&nowD.getTime()<inp.end.getTime();
   if(useCur){
     res.curTotal=inp.cur.total; res.curTab=inp.cur.tab; res.baseApprox=false;
@@ -2384,6 +2411,10 @@ function analysisCompute(inp){
   }
   return res;
 }
+
+// Known-true balance (Checking + Savings Acct) as of the end of this day. Entries dated
+// after it move the balance; entries on or before it are assumed to be already in it.
+const BAL_CP={d:new Date(2026,10,18),total:576+10747};
 
 async function loadHistoryWeeks(mondays){
   const hq="'"+HISTORY_TAB+"'!";
@@ -2438,7 +2469,7 @@ async function loadAnalysis(){
     const titles=(meta.sheets||[]).map(x=>x.properties.title);
     const tabs=titles.map(t=>({t,d:parseTabDate(t)})).filter(x=>x.d);
     const m0=getMondayOf(s), m1=getMondayOf(addDays(e,-1));
-    const lo=addDays(m0,-7), hi=addDays(m1,7);
+    const lo=new Date(Math.min(addDays(m0,-7).getTime(),getMondayOf(BAL_CP.d).getTime())), hi=addDays(m1,7);
     const use=tabs.filter(x=>x.d.getTime()>=lo.getTime()&&x.d.getTime()<=hi.getTime());
     const baseTab=tabs.filter(x=>x.d.getTime()<=s.getTime()).sort((a,b)=>b.d-a.d)[0]||null;
     const ranges=use.map(x=>"'"+x.t+"'!A3:E500").concat([MA+'I55']);
@@ -2497,7 +2528,7 @@ async function loadAnalysis(){
       const c3=cv[0]?cv[0][0]:undefined, c4=cv[1]?cv[1][0]:undefined;
       if(typeof c3==='number'&&typeof c4==='number') cur={total:c3+c4,tab:curTabObj.t};
     }
-    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,cur,lumps,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
+    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,cur,cp:BAL_CP,lumps,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
     ana.res.histWeeks=hist.length;
     ana.res.missingWeeks=missing.length-hist.length;
     renderAnalysis();
@@ -2619,8 +2650,8 @@ function renderAnalysis(){
   // where we should be + rest of window
   if(res.start0!==null){
     let c='<div class="card"><div class="section-title">Where we should be (cash + savings)<\/div>';
-    if(res.curTotal!==undefined) c+=kv('Balance now (week of '+res.curTab+')',money(res.curTotal));
-    c+=kv('Starting balance'+(res.baseApprox?' (estimated)':(res.curTotal!==undefined?' (from balance now)':'')),money(res.start0));
+    if(res.curTotal!==undefined) c+=kv('Balance now',money(res.curTotal));
+    c+=kv('Starting balance'+(res.baseApprox?' (estimated)':(res.curTotal!==undefined?' (from checkpoint)':'')),money(res.start0));
     c+=kv('Expected income (plan)','+'+money(res.incomeAnt));
     c+=kv('Planned spending (Swipes + Spend)','−'+money(res.spendAnt));
     c+=kv('Should be at end',money(res.should),true);
@@ -2628,6 +2659,7 @@ function renderAnalysis(){
     c+=kv(res.incomeLogged?'Income received so far':'Income received so far (none logged)','+'+money(res.income.act));
     c+=kv('Projected at your pace',money(res.projected),true);
     c+=kv('vs plan',(dv>=0?'+':'−')+money(Math.abs(dv)));
+    if(res.curTotal!==undefined) c+='<div class="hint">Balances are anchored on a known-true balance of '+money(BAL_CP.total)+' (Checking + Savings Acct) on '+nice(BAL_CP.d)+', plus income and Swipes/Spend logged after that day.<\/div>';
     c+='<div class="hint">Savings categories are only virtual pockets, so they never change the balance: Swipes and Spend lower it, Income raises it. Projected income = what you logged plus what is still expected (the plan, if you have not logged any).<\/div><\/div>';
     out.push(c);
   }else{
