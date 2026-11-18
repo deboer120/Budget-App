@@ -531,7 +531,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.0</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.1</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -569,6 +569,11 @@ td select{color-scheme:light dark;}
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
 //
+// v1.9.1 - Fewer Google prompts. The app remembers your Google account on this
+// device (needs a one-time re-consent for the email scope) and passes it as a hint,
+// so the "Choose an account" screen is skipped. The token now refreshes on your next
+// tap instead of by a background timer, because browsers block popups not started
+// by a tap. No more jump to the Add tab when the token refreshes.
 // v1.9.0 - Analysis pacing is now timing-aware. Rent and Electricity (Money
 //          Allocation K:O, amounts in column L) are treated as one "Rent" lump
 //          due the last day of each month instead of being spread evenly; the
@@ -677,7 +682,7 @@ td select{color-scheme:light dark;}
 // -- CONFIG --------------------------------------------------------------------
 const CLIENT_ID     = '692234850503-9j913fbhg0ip5a6f84n3o1o3j6utminm.apps.googleusercontent.com';
 const SHEET_ID      = '1DIARGC8hijfimrmYtPlqJlHbjxhjY98WlHpbg9pohXQ';
-const SCOPES        = 'https://www.googleapis.com/auth/spreadsheets';
+const SCOPES        = 'https://www.googleapis.com/auth/spreadsheets openid email';
 const STORE         = 'budget_v4';
 const TOKEN_KEY     = 'budget_token';
 const TEMPLATE_TAB  = 'Week Template';
@@ -868,8 +873,50 @@ function handleAuth(){
     loadGIS();
     return;
   }
-  tokenClient.requestAccessToken({prompt:'select_account'});
+  const em=getEmail();
+  if(em) tokenClient.requestAccessToken({prompt:'',hint:em});
+  else tokenClient.requestAccessToken({prompt:'select_account'});
 }
+
+// -- per-device account memory + gesture-based refresh (v1.9.1) --
+const EMAIL_KEY='budget_email', SIGNED_KEY='budget_signed_in';
+let _uiSignedIn=false, _tokPromise=null, _tokRes=null, _tokRej=null;
+function getEmail(){ try{return localStorage.getItem(EMAIL_KEY)||'';}catch(e){return '';} }
+function setEmail(v){ try{ if(v) localStorage.setItem(EMAIL_KEY,v); else localStorage.removeItem(EMAIL_KEY);}catch(e){} }
+function getSignedFlag(){ try{return localStorage.getItem(SIGNED_KEY)==='1';}catch(e){return false;} }
+function setSignedFlag(v){ try{ if(v) localStorage.setItem(SIGNED_KEY,'1'); else localStorage.removeItem(SIGNED_KEY);}catch(e){} }
+function tokenMsLeft(){
+  try{ const st=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}'); return st.exp?st.exp-Date.now():0; }catch(e){ return 0; }
+}
+function settleToken(err){
+  const r=_tokRes, j=_tokRej; _tokPromise=null; _tokRes=null; _tokRej=null;
+  if(err){ if(j) j(err); } else if(r) r();
+}
+// One shared in-flight request so a tap refresh and a 401 retry never open two popups.
+function requestToken(){
+  if(_tokPromise) return _tokPromise;
+  _tokPromise=new Promise((res,rej)=>{ _tokRes=res; _tokRej=rej; });
+  const em=getEmail();
+  try{ tokenClient.requestAccessToken(em?{prompt:'',hint:em}:{prompt:''}); }
+  catch(e){ settleToken(e); }
+  return _tokPromise;
+}
+function showReauth(){
+  updateAuthUI(false);
+  const h=document.getElementById('signinHint'); const em=getEmail();
+  if(h) h.textContent=em?('Session paused. Tap to continue as '+em+'.'):'Tap the button to sign in with your Google account.';
+}
+async function fetchEmail(tok){
+  try{
+    const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+tok}});
+    if(r.ok){ const j=await r.json(); if(j&&j.email) setEmail(j.email); }
+  }catch(e){}
+}
+// Refresh on a user tap (inside a user gesture, so the browser allows the Google popup)
+document.addEventListener('pointerdown',()=>{
+  if(!tokenClient||!_uiSignedIn||!getSignedFlag()||_tokPromise) return;
+  if(tokenMsLeft()<600000) requestToken().catch(()=>{});
+},true);
 
 function loadGIS(){
   const existing=document.querySelector('script[src*="accounts.google.com"]');
@@ -883,31 +930,33 @@ function loadGIS(){
 }
 
 function signOut(){
+  let old='';
+  try{ old=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}').token||''; }catch(e){}
   accessToken=null; clearToken();
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
-  if(window.google&&google.accounts&&google.accounts.oauth2){
-    google.accounts.oauth2.revoke(loadToken()&&JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}').token||'',()=>{});
+  setEmail(''); setSignedFlag(false);
+  if(old&&window.google&&google.accounts&&google.accounts.oauth2){
+    google.accounts.oauth2.revoke(old,()=>{});
   }
   updateAuthUI(false);
 }
 
-function scheduleRefresh(expiresIn){
+function scheduleRefresh(){
+  // v1.9.1: no background timer. Browsers block popups that are not started by a tap,
+  // so the token is refreshed on the user's next tap instead (see pointerdown above).
   if(silentRefreshTimer) clearTimeout(silentRefreshTimer);
-  const delay=Math.max(((expiresIn||3600)-120)*1000, 10000);
-  silentRefreshTimer=setTimeout(()=>{
-    // Silent refresh — no prompt, user will not see anything
-    tokenClient.requestAccessToken({prompt:''});
-  }, delay);
 }
 
 function onTokenReceived(accessTok, expiresIn){
   accessToken=accessTok;
   saveToken(accessTok, expiresIn||3600);
-  scheduleRefresh(expiresIn||3600);
-  updateAuthUI(true);
+  setSignedFlag(true);
+  if(!getEmail()) fetchEmail(accessTok);
+  if(!_uiSignedIn) updateAuthUI(true);
 }
 
 function updateAuthUI(signedIn){
+  _uiSignedIn=!!signedIn;
   const btn=document.getElementById('authBtn');
   document.getElementById('authBtnLabel').textContent=signedIn?'Signed in':'Sign in';
   btn.classList.toggle('signed-in',signedIn);
@@ -938,18 +987,11 @@ async function sheetsReq(method,path,body){
   if(body) opts.body=JSON.stringify(body);
   const res=await fetch(url,opts);
   if(res.status===401){
-    // Token expired — silent refresh via GIS
+    // Token expired - refresh through the shared request, then retry once
     accessToken=null; clearToken();
-    return new Promise((resolve,reject)=>{
-      tokenClient.requestAccessToken({
-        prompt:'',
-        callback:(resp)=>{
-          if(resp.error){ signOut(); reject(new Error('Session expired — please sign in again')); return; }
-          onTokenReceived(resp.access_token, resp.expires_in);
-          sheetsReq(method,path,body).then(resolve).catch(reject);
-        }
-      });
-    });
+    try{ await requestToken(); }
+    catch(e){ showReauth(); throw new Error('Session paused - tap to continue'); }
+    return sheetsReq(method,path,body);
   }
   if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e?.error?.message||'Sheets error '+res.status); }
   return res.status===204?{}:res.json();
@@ -2568,25 +2610,13 @@ resetAnalysisDates();
 // the tab/app is backgrounded. When the user comes back, re-check token
 // freshness and retry silently if needed, rather than waiting for a timer
 // that may never have fired.
-let _lastVisibilityRetry=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible') return;
-  if(Date.now()-_lastVisibilityRetry<30000) return; // 30s cooldown
-  _lastVisibilityRetry=Date.now();
   if(!tokenClient) return;
+  // v1.9.1: never auto-request here (it would need a popup outside a user gesture).
+  // Just restore a still-valid stored token; an expired one refreshes on the next tap.
   const stored=JSON.parse(localStorage.getItem(TOKEN_KEY)||'{}');
-  const msLeft=stored.exp?stored.exp-Date.now():0;
-  if(msLeft>120000){
-    // Token still valid - make sure we are using it and the refresh timer is live
-    if(!accessToken&&stored.token){ accessToken=stored.token; updateAuthUI(true); }
-    scheduleRefresh(msLeft/1000);
-    return;
-  }
-  // Token missing or expired while backgrounded - try silent refresh
-  if(accessToken||stored.token){
-    accessToken=null; clearToken();
-    tokenClient.requestAccessToken({prompt:''});
-  }
+  if(tokenMsLeft()>120000&&!accessToken&&stored.token){ accessToken=stored.token; if(!_uiSignedIn) updateAuthUI(true); }
 });
 
 // -- INIT ----------------------------------------------------------------------
@@ -2610,15 +2640,17 @@ function initGoogleAuth(){
     callback:(resp)=>{
       if(resp.error){
         console.warn('Token error:',resp.error);
-        // If silent refresh failed, show sign-in screen so user can sign in manually
-        if(resp.error==='interaction_required'||resp.error==='access_denied'){
-          updateAuthUI(false);
-        } else {
-          showToast('Sign-in error: '+resp.error,'err');
-        }
+        settleToken(new Error(resp.error));
+        if(!_tokPromise&&(resp.error==='interaction_required'||resp.error==='access_denied')) showReauth();
+        else if(resp.error!=='interaction_required'&&resp.error!=='access_denied') showToast('Sign-in error: '+resp.error,'err');
         return;
       }
       onTokenReceived(resp.access_token, resp.expires_in);
+      settleToken();
+    },
+    error_callback:(err)=>{
+      console.warn('Token popup error:',err&&err.type);
+      settleToken(new Error((err&&err.type)||'popup_error'));
     },
   });
 
@@ -2630,7 +2662,6 @@ function initGoogleAuth(){
     if(msLeft>120000){
       // Token still valid — go straight in, no prompts
       accessToken=saved;
-      scheduleRefresh(msLeft/1000);
       updateAuthUI(true);
       return;
     }
@@ -2639,7 +2670,7 @@ function initGoogleAuth(){
     // browser still has an active Google session this succeeds with no
     // visible prompt. Only falls back to the sign-in screen if that fails.
     clearToken();
-    tokenClient.requestAccessToken({prompt:''});
+    showReauth();
     return;
   }
   // No stored token at all - show sign-in screen, no auto-prompt
