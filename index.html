@@ -324,6 +324,7 @@ td select{color-scheme:light dark;}
               <option value="Swipes">Swipes</option>
               <option value="Spend">Spend</option>
               <option value="Savings">Savings</option>
+              <option value="Income">Income</option>
             </select>
           </div>
         </div>
@@ -358,6 +359,7 @@ td select{color-scheme:light dark;}
           <option value="Swipes">Swipes</option>
           <option value="Spend">Spend</option>
           <option value="Savings">Savings</option>
+          <option value="Income">Income</option>
         </select>
       </div>
       <div class="balance-card">
@@ -510,6 +512,7 @@ td select{color-scheme:light dark;}
               <option value="Swipes">Swipes</option>
               <option value="Spend">Spend</option>
               <option value="Savings">Savings</option>
+              <option value="Income">Income</option>
             </select>
           </div>
           <div style="display:flex;align-items:flex-end;">
@@ -522,7 +525,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.2</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.8.1</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -559,6 +562,21 @@ td select{color-scheme:light dark;}
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.8.1 - Income is now the real inflow: Savings-category entries no longer affect
+//          the Analysis balance (only Swipes and Spend lower it, Income raises it).
+//          "Misc" is always an income source (no planned amount) for gigs and odd
+//          jobs. Ledger cost and Add amount pad to two decimals when you leave the
+//          field (15 -> 15.00, 15.3 -> 15.30). Template formulas to match are in
+//          the release notes: Savings Acct R4 = O4 - Swipes - Spend + Income.
+//
+// v1.8.0 - Income can be logged: Add tab Type "Income" with a source picked from
+//          the Money Allocation income table (names E3:E51, weekly take-home in
+//          column I). Ledger Type/Source dropdowns include Income. Summary has
+//          an Income view (received this week by source). Analysis has an Income
+//          view and, on All, an income card: expected (take-home x days / 7) vs
+//          actual received, and the projected balance now uses income actually
+//          received plus what is still expected.
 //
 // v1.7.2 - Ledger: typing no longer redraws the table or steals the cursor; the
 //          next blank row is added (and the sheet saved) only when a field is
@@ -663,7 +681,7 @@ const FREEZE_AFTER_WEEKS=2;            // tabs older than this many weeks become
 function emptyCats(){ const c={}; GROUPS.forEach(g=>{ c[g]={pockets:[],totalSlots:0,filledSlots:0,empty:[]}; }); return c; }
 
 // -- STATE ---------------------------------------------------------------------
-let state = { entries:[], pockets:[], cats:emptyCats(), totalSlots:0, filledSlots:0, srcGroup:'Swipes' };
+let state = { entries:[], pockets:[], income:[], cats:emptyCats(), totalSlots:0, filledSlots:0, srcGroup:'Swipes' };
 let accessToken  = null;
 let currentTabName = '';
 let sheetLoaded  = false;
@@ -678,6 +696,7 @@ function loadLocal(){
   GROUPS.forEach(g=>{ if(!state.cats[g]) state.cats[g]={pockets:[],totalSlots:0,filledSlots:0,empty:[]}; if(!state.cats[g].empty) state.cats[g].empty=[]; });
   if(!state.cats.Swipes.pockets.length&&state.pockets.length) state.cats.Swipes.pockets=state.pockets;
   state.srcGroup=state.srcGroup||'Swipes';
+  state.income=state.income||[];
 }
 function saveLocal(){ localStorage.setItem(STORE,JSON.stringify(state)); }
 function saveToken(t,expiresIn){
@@ -701,21 +720,24 @@ function num(v){ const p=parseFloat(String(v||'').replace(/[^0-9.\-]/g,'')); ret
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ var s2=String(s||''); s2=s2.split('&').join('&amp;'); s2=s2.split('<').join('&lt;'); s2=s2.split('>').join('&gt;'); s2=s2.split('"').join('&quot;'); return s2; }
 
-function catsOf(g){ return (state.cats&&state.cats[g]&&state.cats[g].pockets)||[]; }
+function catsOf(g){ if(g==='Income') return state.income||[]; return (state.cats&&state.cats[g]&&state.cats[g].pockets)||[]; }
 function groupOfName(n){
   const k=String(n||'').trim().toLowerCase();
   if(!k) return '';
   for(const g of GROUPS){ if(catsOf(g).some(p=>String(p.name).toLowerCase()===k)) return g; }
+  if(catsOf('Income').some(p=>String(p.name).toLowerCase()===k)) return 'Income';
   return '';
 }
 function entryGroup(e){
   const a=String((e&&e.account)||'').trim().toLowerCase();
   if(a==='spend') return 'Spend';
   if(a==='savings') return 'Savings';
+  if(a==='income') return 'Income';
   return 'Swipes';
 }
 function applySources(r){
   state.cats=r.cats;
+  state.income=r.income||[];
   state.pockets=r.cats.Swipes.pockets;
   state.totalSlots=r.cats.Swipes.totalSlots;
   state.filledSlots=r.cats.Swipes.filledSlots;
@@ -1019,7 +1041,18 @@ async function loadSourcesFromSheet(){
     }
     cats[g]={pockets,totalSlots:slots,filledSlots:pockets.length,empty};
   });
-  return {cats};
+  // Income sources: names in E3:E51, weekly take-home in I (Money Allocation income table)
+  const income=[];
+  try{
+    const idata=await sheetsReq('GET','/values/'+encodeURIComponent(MA+'E3:I51')+'?valueRenderOption=UNFORMATTED_VALUE');
+    (idata.values||[]).forEach((row,i)=>{
+      const nm=(row&&row[0]!==undefined&&row[0]!==null)?String(row[0]).trim():'';
+      if(nm) income.push({id:'inc'+(3+i),row:3+i,name:nm,amount:num(row[4]),group:'Income'});
+    });
+  }catch(e){ console.warn('Income list read failed:',e.message); }
+  // "Misc" (gigs, odd jobs) is always an income source, with no planned amount
+  if(!income.some(x=>x.name.toLowerCase()==='misc')) income.push({id:'incMisc',row:0,name:'Misc',amount:0,group:'Income'});
+  return {cats,income};
 }
 
 // Spend amounts (S22:S28) are SUMIF formulas. When a new Spend category goes into a
@@ -1497,19 +1530,24 @@ function buildPocketSelect(){
   const acct=document.getElementById('account').value;
   const req=acct!=='Swipes';
   const cur=sel.value;
-  sel.innerHTML='<option value="">'+(req?'— choose a category —':'— unassigned —')+'<\/option>';
+  sel.innerHTML='<option value="">'+(acct==='Income'?'— choose an income source —':(req?'— choose a category —':'— unassigned —'))+'<\/option>';
   catsOf(acct).forEach(p=>{
     const o=document.createElement('option');
     o.value=p.name; o.textContent=p.name; sel.appendChild(o);
   });
   if(catsOf(acct).some(p=>p.name===cur)) sel.value=cur;
-  document.getElementById('pocketLabel').innerHTML=(req?'Category':'Source')+' <span style="font-weight:400;color:var(--ink3);text-transform:none;">('+(req?'required':'optional')+')<\/span>';
+  document.getElementById('pocketLabel').innerHTML=(acct==='Income'?'Income source':(req?'Category':'Source'))+' <span style="font-weight:400;color:var(--ink3);text-transform:none;">('+(req?'required':'optional')+')<\/span>';
   const hint=document.getElementById('pocketHint');
   if(acct==='Savings'){ hint.style.display='block'; hint.textContent='Positive = money spent out of the category. Negative = money added to it.'; }
   else hint.style.display='none';
 }
 
 document.getElementById('account').addEventListener('change',function(){ buildPocketSelect(); });
+document.getElementById('cost').addEventListener('blur',function(){
+  if(this.value.trim()==='') return;
+  const v=num(this.value);
+  this.value=(Math.round(v*100)/100).toFixed(2);
+});
 
 // -- SAVE EXPENSE --------------------------------------------------------------
 async function doSave(goTo){
@@ -1520,7 +1558,7 @@ async function doSave(goTo){
   const tabName=document.getElementById('weekSelect').value;
   if(!item){ showToast('Enter what you paid for',''); return; }
   if(cost===0){ showToast('Enter a non-zero amount',''); return; }
-  if(account!=='Swipes'&&!pocket){ showToast('Choose a '+account+' category',''); return; }
+  if(account!=='Swipes'&&!pocket){ showToast(account==='Income'?'Choose an income source':'Choose a '+account+' category',''); return; }
   const entry={id:uid(),date:todayStr(),item,account,pocket,cost};
   const btnR=document.getElementById('saveBtnReview');
   const btnA=document.getElementById('saveBtnAnother');
@@ -1565,7 +1603,7 @@ function getSpentByPocket(){
 // land in "unc" (shown as Uncategorized).
 function spentByGroupCat(){
   const out={};
-  GROUPS.forEach(g=>{ out[g]={map:{},unc:0,total:0}; });
+  GROUPS.concat(['Income']).forEach(g=>{ out[g]={map:{},unc:0,total:0}; });
   state.entries.forEach(e=>{
     if(!(e.item||num(e.cost))) return;
     const g=entryGroup(e), c=num(e.cost), o=out[g];
@@ -1611,7 +1649,7 @@ function renderSummary(){
   }
   const o=sg[view];
   const list=catsOf(view);
-  document.getElementById('bigLabel').textContent='Spent '+wkp+' · '+view;
+  document.getElementById('bigLabel').textContent=(view==='Income'?'Received ':'Spent ')+wkp+' · '+view;
   el.textContent=money(o.total);
   el.className='amount';
   document.getElementById('bigMeta').textContent=list.length+' categor'+(list.length===1?'y':'ies')+(view==='Savings'?' · negatives are money added':'');
@@ -1619,7 +1657,7 @@ function renderSummary(){
   const addRow=(name,amt)=>{
     const div=document.createElement('div');
     div.className='pocket-row'+(Math.abs(amt)<0.005?' dim':'');
-    div.innerHTML='<div><div class="name">'+esc(name)+'<\/div><div class="sub">Spent '+wkp+'<\/div><\/div><div class="badge badge-neutral">'+money(amt)+'<\/div>';
+    div.innerHTML='<div><div class="name">'+esc(name)+'<\/div><div class="sub">'+(view==='Income'?'Received ':'Spent ')+wkp+'<\/div><\/div><div class="badge badge-neutral">'+money(amt)+'<\/div>';
     rows.appendChild(div);
   };
   list.forEach(p=>addRow(p.name,o.map[p.name]||0));
@@ -1631,7 +1669,7 @@ document.getElementById('sumView').addEventListener('change',()=>renderSummary()
 // Source dropdown for the ledger: all three groups, picking one sets the entry type
 function ledgerOpts(){
   let h='<option value="">—<\/option>';
-  GROUPS.forEach(g=>{
+  GROUPS.concat(['Income']).forEach(g=>{
     const l=catsOf(g);
     if(!l.length) return;
     h+='<optgroup label="'+g+'">'+l.map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'<\/option>').join('')+'<\/optgroup>';
@@ -1682,7 +1720,8 @@ async function ledgerChange(ev){
   const entry=tr&&state.entries.find(x=>x.id===tr.dataset.rid);
   if(!entry) return;
   const f=ev.target.dataset.f;
-  entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
+  entry[f]=f==='cost'?Math.round(num(ev.target.value)*100)/100:ev.target.value;
+  if(f==='cost') ev.target.value=entry.cost?entry.cost.toFixed(2):'';
   if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
   if(f==='account'&&entry.pocket&&groupOfName(entry.pocket)!==entry.account) entry.pocket='';
   ledgerSyncRow(tr,entry);
@@ -1707,7 +1746,7 @@ function ledgerRowEl(e,pocketOpts){
   tr.innerHTML=
     '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:100%;"/><\/td>'+
     '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" name="entry-item" data-f="item" placeholder="Expense…" style="'+iStyle+'"/><\/td>'+
-    '<td style="padding:0 4px;"><select name="entry-account" data-f="account" style="'+iStyle+'font-size:11px;"><option value="Swipes">Swipes<\/option><option value="Spend">Spend<\/option><option value="Savings">Savings<\/option><\/select><\/td>'+
+    '<td style="padding:0 4px;"><select name="entry-account" data-f="account" style="'+iStyle+'font-size:11px;"><option value="Swipes">Swipes<\/option><option value="Spend">Spend<\/option><option value="Savings">Savings<\/option><option value="Income">Income<\/option><\/select><\/td>'+
     '<td style="padding:0 4px;"><select name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
     '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
     '<td class="del-cell" style="padding:0 4px 0 0;text-align:center;"><\/td>';
@@ -2134,8 +2173,16 @@ function analysisCompute(inp){
     const o=groups[g], r=o.idx[String(name||'').toLowerCase()];
     if(r) r.act+=v; else o.other+=v;
   };
+  const inc={rows:(inp.income||[]).map(p=>({name:p.name,ant:num(p.amount)*days/7,act:0})),other:0,ant:0,act:0,idx:{},count:0};
+  inc.rows.forEach(r=>{ inc.idx[r.name.toLowerCase()]=r; });
   (inp.entries||[]).forEach(e=>{
     if(!e.date||e.date.getTime()<inp.start.getTime()||e.date.getTime()>=inp.end.getTime()) return;
+    if(e.group==='Income'){
+      const r=inc.idx[String(e.pocket||'').toLowerCase()];
+      if(r) r.act+=e.cost; else inc.other+=e.cost;
+      inc.count++;
+      return;
+    }
     add(e.group,e.pocket,e.cost);
     if(e.group==='Savings'&&e.cost>0) savOut+=e.cost;
   });
@@ -2154,12 +2201,14 @@ function analysisCompute(inp){
     o.ant=o.rows.reduce((s,r)=>s+r.ant,0);
     o.act=o.rows.reduce((s,r)=>s+r.act,0)+o.other;
   });
+  inc.ant=inc.rows.reduce((s,r)=>s+r.ant,0);
+  inc.act=inc.rows.reduce((s,r)=>s+r.act,0)+inc.other;
   const total={ant:0,act:0};
   GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; });
   const incomeAnt=num(inp.takeHome)*days/7;
   const spendAnt=groups.Swipes.ant+groups.Spend.ant;
-  const spendAct=groups.Swipes.act+groups.Spend.act+savOut;
-  const res={days,elapsed,rest,groups,total,incomeAnt,spendAnt,spendAct,savOut,
+  const spendAct=groups.Swipes.act+groups.Spend.act;   // Savings-category entries never touch the account balance
+  const res={days,elapsed,rest,groups,total,income:inc,incomeAnt,spendAnt,spendAct,savOut,
     restIncome:num(inp.takeHome)*rest/7,
     restSpend:spendAnt*rest/days,
     restSave:groups.Savings.ant*rest/days,
@@ -2171,7 +2220,11 @@ function analysisCompute(inp){
     res.start0=inp.base.total+perDay*gap;
     res.baseApprox=gap>0;
     res.should=res.start0+incomeAnt-spendAnt;
-    res.projected=res.start0+incomeAnt-spendAct-(spendAnt*rest/days);
+    // projected income: what was actually received plus what is still expected; if no
+    // income has been logged in the window, fall back to the plan
+    res.incomeLogged=inc.count>0;
+    res.projIncome=res.incomeLogged?(inc.act+res.restIncome):incomeAnt;
+    res.projected=res.start0+res.projIncome-spendAct-(spendAnt*rest/days);
   }
   return res;
 }
@@ -2263,7 +2316,7 @@ async function loadAnalysis(){
     }
     const allow={};
     GROUPS.forEach(g=>{ allow[g]=catsOf(g).map(p=>({name:p.name,amount:p.amount})); });
-    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base});
+    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
     ana.res.histWeeks=hist.length;
     ana.res.missingWeeks=missing.length-hist.length;
     renderAnalysis();
@@ -2273,18 +2326,27 @@ async function loadAnalysis(){
   }finally{ ana.busy=false; setSpinner(false); }
 }
 
-function anaPaceCard(label,ant,act,res){
+function anaPaceCard(label,ant,act,res,isIncome){
   const toDate=ant*res.elapsed/res.days;
   const pctFill=ant>0?Math.max(0,Math.min(100,act/ant*100)):(act>0?100:0);
   const mark=Math.min(100,res.elapsed/res.days*100);
-  const cls=act<=toDate+0.005?'':(act<=ant+0.005?' warn':' bad');
+  let cls=act<=toDate+0.005?'':(act<=ant+0.005?' warn':' bad');
   const diff=act-toDate;
-  const pace=res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace');
+  let pace=res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace');
+  if(isIncome){
+    cls=act>=toDate-0.005?'':(act>=toDate*0.9?' warn':' bad');
+    pace=res.elapsed===0?'not started yet':(diff>=0?money(diff)+' ahead of pace':money(-diff)+' behind pace');
+  }
   return '<div class="balance-card"><div class="label">'+esc(label)+'<\/div>'+
-    '<div class="amount'+(act>ant+0.005?' over':'')+'">'+money(act)+'<\/div>'+
+    '<div class="amount'+((!isIncome&&act>ant+0.005)?' over':'')+'">'+money(act)+'<\/div>'+
     '<div class="meta">Anticipated '+money(ant)+' · '+pace+'<\/div>'+
     '<div class="pace-track"><div class="pace-fill'+cls+'" style="width:'+pctFill.toFixed(1)+'%"><\/div><div class="pace-mark" style="left:'+mark.toFixed(1)+'%"><\/div><\/div>'+
-    '<div class="meta" style="font-size:11px;">Marker = where spending should be today ('+money(toDate)+')<\/div><\/div>';
+    '<div class="meta" style="font-size:11px;">Marker = where '+(isIncome?'income':'spending')+' should be today ('+money(toDate)+')<\/div><\/div>';
+}
+function anaRowInc(name,ant,act){
+  const d=act-ant;
+  const cls=d>=-0.005?'badge-good':'badge-warn';
+  return '<div class="pocket-row'+((Math.abs(ant)<0.005&&Math.abs(act)<0.005)?' dim':'')+'"><div><div class="name">'+esc(name)+'<\/div><div class="sub">Expected '+money(ant)+' · Received '+money(act)+'<\/div><\/div><div class="badge '+cls+'">'+(d>=0?'+':'')+money(d)+'<\/div><\/div>';
 }
 function anaRow(name,ant,act){
   const left=ant-act;
@@ -2307,6 +2369,15 @@ function renderAnalysis(){
     out.push('<div class="card" style="padding:16px 16px 4px;"><div class="section-title">Anticipated vs actual<\/div>'+
       GROUPS.map(g=>anaRow(g,res.groups[g].ant,res.groups[g].act)).join('')+
       anaRow('Combined total',res.total.ant,res.total.act)+'<\/div>');
+    out.push(anaPaceCard('Income received',res.income.ant,res.income.act,res,true));
+  }else if(view==='Income'){
+    const o=res.income;
+    out.push(anaPaceCard('Income received',o.ant,o.act,res,true));
+    let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By income source<\/div>';
+    o.rows.forEach(r=>{ h+=anaRowInc(r.name,r.ant,r.act); });
+    if(Math.abs(o.other)>=0.005) h+=anaRowInc('Other / unlisted',0,o.other);
+    if(!o.rows.length&&Math.abs(o.other)<0.005) h+='<div class="empty">No income sources found in Money Allocation<\/div>';
+    out.push(h+'<\/div>');
   }else{
     const o=res.groups[view];
     out.push(anaPaceCard('Spent · '+view,o.ant,o.act,res));
@@ -2320,13 +2391,14 @@ function renderAnalysis(){
   if(res.start0!==null){
     let c='<div class="card"><div class="section-title">Where we should be (cash + savings)<\/div>';
     c+=kv('Starting balance'+(res.baseApprox?' (estimated)':''),money(res.start0));
-    c+=kv('Expected income','+'+money(res.incomeAnt));
+    c+=kv('Expected income (plan)','+'+money(res.incomeAnt));
     c+=kv('Planned spending (Swipes + Spend)','−'+money(res.spendAnt));
     c+=kv('Should be at end',money(res.should),true);
     const dv=res.projected-res.should;
+    c+=kv(res.incomeLogged?'Income received so far':'Income received so far (none logged)','+'+money(res.income.act));
     c+=kv('Projected at your pace',money(res.projected),true);
     c+=kv('vs plan',(dv>=0?'+':'−')+money(Math.abs(dv)));
-    c+='<div class="hint">Savings allocations stay in savings; only money spent out of a savings category lowers the balance. Income is assumed to arrive as planned.<\/div><\/div>';
+    c+='<div class="hint">Savings categories are only virtual pockets, so they never change the balance: Swipes and Spend lower it, Income raises it. Projected income = what you logged plus what is still expected (the plan, if you have not logged any).<\/div><\/div>';
     out.push(c);
   }else{
     out.push('<div class="status-banner warn">'+SVG_WARN+'<span>No starting balance for this start date: the weekly tab that covers it has been archived, and History does not keep balances.<\/span><\/div>');
