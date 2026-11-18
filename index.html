@@ -251,6 +251,8 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 .muted{color:var(--ink2);font-size:13px;}
 .field-row>*{min-width:0;}
 .field input[type=date]{min-width:0;max-width:100%;}
+select option,select optgroup{background:var(--surface);color:var(--ink);}
+td select{color-scheme:light dark;}
 .badge-neutral{background:var(--surface2);color:var(--ink);}
 .pocket-row.dim .name,.pocket-row.dim .sub{opacity:0.5;}
 .pocket-row.dim .badge{opacity:0.5;}
@@ -305,7 +307,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
       <div class="card">
         <div class="field">
           <label for="weekSelect">Week</label>
-          <select id="weekSelect"></select>
+          <select id="weekSelect" class="week-sel"></select>
         </div>
         <div class="field">
           <label for="item">What did you pay for?</label>
@@ -341,8 +343,12 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
     <!-- SUMMARY -->
     <div class="panel" id="panel-summary">
+      <div class="field" style="margin-bottom:12px;">
+        <label for="weekSelectSummary">Week</label>
+        <select id="weekSelectSummary" class="week-sel"></select>
+      </div>
       <div class="balance-card">
-        <div class="label">Spent this week, all types</div>
+        <div class="label" id="overallLabel">Spent this week, all types</div>
         <div class="amount" id="overallTotal">$0.00</div>
         <div class="meta" id="overallMeta">Swipes $0 · Spend $0 · Savings $0</div>
       </div>
@@ -369,6 +375,10 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
     <div class="panel" id="panel-ledger">
       <div id="ledgerBanner"></div>
       <div class="card" style="padding:14px 14px 10px;">
+        <div class="field" style="margin-bottom:12px;">
+          <label for="weekSelectLedger">Week</label>
+          <select id="weekSelectLedger" class="week-sel"></select>
+        </div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div class="section-title" style="margin:0;">Weekly Ledger</div>
           <button class="btn btn-secondary" id="copyLedgerBtn" style="width:auto;font-size:12px;padding:6px 12px;">Copy for Excel</button>
@@ -512,7 +522,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.1</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.2</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -549,6 +559,14 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.7.2 - Ledger: typing no longer redraws the table or steals the cursor; the
+//          next blank row is added (and the sheet saved) only when a field is
+//          left, and a row whose expense and amount are cleared is removed so
+//          there is only ever one blank row. Type/Source dropdowns now have
+//          readable colors in dark and light mode. Week selector added to the
+//          Ledger and Summary tabs, kept in sync with the Add tab (resets to
+//          this week on refresh/reopen); Summary labels show the chosen week.
 //
 // v1.7.1 - Ledger has a Type dropdown (Swipes / Spend / Savings) next to Source;
 //          changing the type clears a Source that belongs to another group.
@@ -744,15 +762,17 @@ function getWeekList(){
 }
 
 function buildWeekOptions(){
-  const sel=document.getElementById('weekSelect');
-  sel.innerHTML='';
-  getWeekList().forEach(w=>{
-    const opt=document.createElement('option');
-    opt.value=w.name;
-    opt.textContent=w.label;
-    sel.appendChild(opt);
+  ['weekSelect','weekSelectLedger','weekSelectSummary'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='';
+    getWeekList().forEach(w=>{
+      const opt=document.createElement('option');
+      opt.value=w.name;
+      opt.textContent=w.label;
+      sel.appendChild(opt);
+    });
+    sel.value=currentTabNameFn();
   });
-  sel.value=currentTabNameFn();
 }
 
 // -- HEADER DATE ---------------------------------------------------------------
@@ -1056,10 +1076,11 @@ async function appendEntry(entry,tab){
 
 async function rewriteEntries(tab){
   await sheetsReq('POST','/values/'+encodeURIComponent("'"+tab+"'!A3:E500")+':clear',{});
-  if(!state.entries.length) return;
+  const rows=state.entries.filter(e=>e.item||num(e.cost));
+  if(!rows.length) return;
   await sheetsReq('PUT','/values/'+encodeURIComponent("'"+tab+"'!A3:E")+'?valueInputOption=USER_ENTERED',{
     range:"'"+tab+"'!A3:E",
-    values:state.entries.map(e=>[e.date,e.item,e.account,e.pocket||'',e.cost])
+    values:rows.map(e=>[e.date,e.item,e.account,e.pocket||'',e.cost])
   });
 }
 
@@ -1445,8 +1466,9 @@ function setSpinner(on){ document.getElementById('refreshBtn').classList.toggle(
 document.getElementById('refreshBtn').addEventListener('click',()=>{ resetAnalysisDates(); doFullRefresh(); if(document.getElementById('panel-analysis').classList.contains('active')) setTimeout(loadAnalysis,3200); });
 
 // -- WEEK SELECT ---------------------------------------------------------------
-document.getElementById('weekSelect').addEventListener('change',async function(){
-  currentTabName=this.value;
+async function onWeekChange(val){
+  currentTabName=val;
+  ['weekSelect','weekSelectLedger','weekSelectSummary'].forEach(id=>{ document.getElementById(id).value=val; });
   updateWeekChip();
   sheetLoaded=false;
   setSpinner(true);
@@ -1462,6 +1484,9 @@ document.getElementById('weekSelect').addEventListener('change',async function()
     saveLocal(); renderAll();
   }catch(e){ showToast('Could not load week','err'); }
   finally{ setSpinner(false); }
+}
+['weekSelect','weekSelectLedger','weekSelectSummary'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',function(){ onWeekChange(this.value); });
 });
 
 // -- POCKET SELECT -------------------------------------------------------------
@@ -1555,6 +1580,8 @@ function spentByGroupCat(){
 function renderSummary(){
   const sg=spentByGroupCat();
   const all=GROUPS.reduce((s,g)=>s+sg[g].total,0);
+  const wkp=(currentTabName&&currentTabName!==currentTabNameFn())?'week of '+currentTabName:'this week';
+  document.getElementById('overallLabel').textContent='Spent '+wkp+', all types';
   document.getElementById('overallTotal').textContent=money(all);
   document.getElementById('overallMeta').textContent=GROUPS.map(g=>g+' '+money(sg[g].total)).join(' · ');
   const view=document.getElementById('sumView').value||'Swipes';
@@ -1584,7 +1611,7 @@ function renderSummary(){
   }
   const o=sg[view];
   const list=catsOf(view);
-  document.getElementById('bigLabel').textContent='Spent this week · '+view;
+  document.getElementById('bigLabel').textContent='Spent '+wkp+' · '+view;
   el.textContent=money(o.total);
   el.className='amount';
   document.getElementById('bigMeta').textContent=list.length+' categor'+(list.length===1?'y':'ies')+(view==='Savings'?' · negatives are money added':'');
@@ -1592,7 +1619,7 @@ function renderSummary(){
   const addRow=(name,amt)=>{
     const div=document.createElement('div');
     div.className='pocket-row'+(Math.abs(amt)<0.005?' dim':'');
-    div.innerHTML='<div><div class="name">'+esc(name)+'<\/div><div class="sub">Spent this week<\/div><\/div><div class="badge badge-neutral">'+money(amt)+'<\/div>';
+    div.innerHTML='<div><div class="name">'+esc(name)+'<\/div><div class="sub">Spent '+wkp+'<\/div><\/div><div class="badge badge-neutral">'+money(amt)+'<\/div>';
     rows.appendChild(div);
   };
   list.forEach(p=>addRow(p.name,o.map[p.name]||0));
@@ -1612,76 +1639,98 @@ function ledgerOpts(){
   return h;
 }
 
+function ledgerFilled(x){ return !!(x.item||num(x.cost)); }
+function ledgerBlank(){ return {id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''}; }
+function ledgerEnsureBlank(){
+  const l=state.entries[state.entries.length-1];
+  if(!l||ledgerFilled(l)){ const b=ledgerBlank(); state.entries.push(b); return b; }
+  return null;
+}
+async function ledgerSave(msg){
+  if(accessToken&&sheetLoaded){
+    try{ await rewriteEntries(currentTabName); showToast(msg,'success'); }
+    catch(err){ showToast('Local saved, sheet error','err'); }
+  }
+}
+// Updates the Type / Source dropdowns and the delete button of one row in place
+function ledgerSyncRow(tr,e){
+  tr.querySelector('[data-f="account"]').value=entryGroup(e);
+  const psel=tr.querySelector('[data-f="pocket"]');
+  if(e.pocket&&!groupOfName(e.pocket)&&!Array.from(psel.options).some(o=>o.value===e.pocket)){
+    const xo=document.createElement('option'); xo.value=e.pocket; xo.textContent=e.pocket; psel.appendChild(xo);
+  }
+  psel.value=e.pocket||'';
+  const dc=tr.querySelector('.del-cell');
+  dc.innerHTML=ledgerFilled(e)?'<button class="del-btn" data-del="'+e.id+'">×<\/button>':'';
+  const b=dc.querySelector('button');
+  if(b) b.addEventListener('click',()=>ledgerDelete(e.id));
+}
+async function ledgerDelete(id){
+  state.entries=state.entries.filter(x=>x.id!==id);
+  const body=document.getElementById('ledgerBody');
+  const tr=body.querySelector('tr[data-rid="'+id+'"]');
+  if(tr) tr.remove();
+  const nb=ledgerEnsureBlank();
+  if(nb) body.appendChild(ledgerRowEl(nb,ledgerOpts()));
+  saveLocal(); renderSummary(); renderPockets();
+  await ledgerSave('Deleted from Sheet');
+}
+// Fires when a field is left (not while typing): save, tidy blank rows, add the
+// next blank row only now, and update dropdowns in place so focus is never lost.
+async function ledgerChange(ev){
+  const tr=ev.target.closest('tr');
+  const entry=tr&&state.entries.find(x=>x.id===tr.dataset.rid);
+  if(!entry) return;
+  const f=ev.target.dataset.f;
+  entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
+  if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
+  if(f==='account'&&entry.pocket&&groupOfName(entry.pocket)!==entry.account) entry.pocket='';
+  ledgerSyncRow(tr,entry);
+  const body=document.getElementById('ledgerBody');
+  const last=state.entries[state.entries.length-1];
+  if(!ledgerFilled(entry)&&entry!==last){
+    state.entries=state.entries.filter(x=>x!==entry);
+    tr.remove();
+  }else if(ledgerFilled(entry)){
+    const nb=ledgerEnsureBlank();
+    if(nb) body.appendChild(ledgerRowEl(nb,ledgerOpts()));
+  }
+  saveLocal(); renderSummary(); renderPockets();
+  await ledgerSave('Sheet updated');
+}
+function ledgerRowEl(e,pocketOpts){
+  const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 4px;outline:none;overflow:hidden;text-overflow:ellipsis;';
+  const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
+  const tr=document.createElement('tr');
+  tr.dataset.rid=e.id;
+  tr.style.borderBottom='1px solid var(--border)';
+  tr.innerHTML=
+    '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:100%;"/><\/td>'+
+    '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" name="entry-item" data-f="item" placeholder="Expense…" style="'+iStyle+'"/><\/td>'+
+    '<td style="padding:0 4px;"><select name="entry-account" data-f="account" style="'+iStyle+'font-size:11px;"><option value="Swipes">Swipes<\/option><option value="Spend">Spend<\/option><option value="Savings">Savings<\/option><\/select><\/td>'+
+    '<td style="padding:0 4px;"><select name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
+    '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
+    '<td class="del-cell" style="padding:0 4px 0 0;text-align:center;"><\/td>';
+  tr.querySelectorAll('[data-f]').forEach(el=>{
+    // typing only updates the in-memory value; nothing else happens until the field is left
+    el.addEventListener('input',ev=>{
+      const entry=state.entries.find(x=>x.id===e.id);
+      if(entry) entry[ev.target.dataset.f]=ev.target.value;
+    });
+    el.addEventListener('change',ledgerChange);
+  });
+  ledgerSyncRow(tr,e);
+  return tr;
+}
+
 function renderLedger(){
   const body=document.getElementById('ledgerBody');
   body.innerHTML='';
-  // Ensure trailing blank entry
-  const last=state.entries[state.entries.length-1];
-  if(!last||last.item||last.cost){
-    state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
-  }
-  const pocketOpts=ledgerOpts();
-  const iStyle='border:none;background:transparent;font-size:12px;font-family:var(--sans);color:var(--ink);width:100%;padding:9px 4px;outline:none;overflow:hidden;text-overflow:ellipsis;';
-  const numStyle=iStyle+'text-align:right;font-family:var(--mono);';
-
-  state.entries.forEach((e)=>{
-    const isFilled=e.item||e.cost;
-    const tr=document.createElement('tr');
-    tr.style.borderBottom='1px solid var(--border)';
-    tr.innerHTML=
-      '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:100%;"/><\/td>'+
-      '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" name="entry-item" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/><\/td>'+
-      '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-account" data-f="account" style="'+iStyle+'font-size:11px;"><option value="Swipes">Swipes<\/option><option value="Spend">Spend<\/option><option value="Savings">Savings<\/option><\/select><\/td>'+
-      '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
-      '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
-      '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7<\/button>':'')+'<\/td>';
-    body.appendChild(tr);
-    tr.querySelector('[data-f="account"]').value=entryGroup(e);
-    const psel=tr.querySelector('[data-f="pocket"]');
-    if(e.pocket&&!groupOfName(e.pocket)){ const xo=document.createElement('option'); xo.value=e.pocket; xo.textContent=e.pocket; psel.appendChild(xo); }
-    psel.value=e.pocket||'';
-  });
-
-  body.querySelectorAll('[data-id]').forEach(el=>{
-    el.addEventListener('input',ev=>{
-      const id=ev.target.dataset.id,f=ev.target.dataset.f;
-      const entry=state.entries.find(x=>x.id===id);
-      if(!entry) return;
-      entry[f]=ev.target.value;
-      if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
-      // Add new blank if last row is being filled
-      const last=state.entries[state.entries.length-1];
-      if(last.item||last.cost){
-        state.entries.push({id:uid(),date:todayStr(),item:'',account:'Swipes',pocket:'',cost:''});
-        renderLedger(); return;
-      }
-    });
-    el.addEventListener('change',async ev=>{
-      const id=ev.target.dataset.id,f=ev.target.dataset.f;
-      const entry=state.entries.find(x=>x.id===id);
-      if(!entry) return;
-      entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
-      if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
-      if(f==='account'&&entry.pocket&&groupOfName(entry.pocket)!==entry.account) entry.pocket='';
-      if(f==='account'||f==='pocket') renderLedger();
-      saveLocal(); renderSummary(); renderPockets();
-      if(accessToken&&sheetLoaded){
-        try{ await rewriteEntries(currentTabName); showToast('Sheet updated','success'); }
-        catch(e){ showToast('Local saved, sheet error','err'); }
-      }
-    });
-  });
-
-  body.querySelectorAll('[data-del]').forEach(btn=>{
-    btn.addEventListener('click',async()=>{
-      state.entries=state.entries.filter(x=>x.id!==btn.dataset.del);
-      saveLocal(); renderLedger(); renderSummary(); renderPockets();
-      if(accessToken&&sheetLoaded){
-        try{ await rewriteEntries(currentTabName); showToast('Deleted from Sheet','success'); }
-        catch(e){ showToast('Deleted locally, sheet error','err'); }
-      }
-    });
-  });
+  // drop stray empty rows, then keep exactly one blank row at the bottom
+  state.entries=state.entries.filter((x,i)=>ledgerFilled(x)||i===state.entries.length-1);
+  ledgerEnsureBlank();
+  const opts=ledgerOpts();
+  state.entries.forEach(e=>body.appendChild(ledgerRowEl(e,opts)));
 }
 
 document.getElementById('copyLedgerBtn').addEventListener('click',()=>{
