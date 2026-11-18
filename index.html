@@ -266,6 +266,12 @@ td select{color-scheme:light dark;}
 .kv span:last-child{font-family:var(--mono);white-space:nowrap;}
 .kv.strong{font-weight:700;}
 .hint{font-size:12px;color:var(--ink3);margin-top:6px;line-height:1.4;}
+.ptrack{position:relative;height:12px;border-radius:7px;background:var(--surface3);margin:42px 0 46px;}
+.pfill{position:absolute;left:0;top:0;bottom:0;border-radius:7px;}
+.pmk{position:absolute;top:-7px;bottom:-7px;width:2px;margin-left:-1px;}
+.pmk span{position:absolute;white-space:nowrap;font-size:10px;font-weight:700;line-height:1.25;text-align:center;}
+.pmk.up span{bottom:100%;margin-bottom:3px;}
+.pmk.dn span{top:100%;margin-top:3px;}
 </style>
 </head>
 <body>
@@ -525,7 +531,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.8.1</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.0</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -562,6 +568,19 @@ td select{color-scheme:light dark;}
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.9.0 - Analysis pacing is now timing-aware. Rent and Electricity (Money
+//          Allocation K:O, amounts in column L) are treated as one "Rent" lump
+//          due the last day of each month instead of being spread evenly; the
+//          rest of those categories stays smooth. CCT, Librarian, YMCA and Stage
+//          Manager income arrives every Friday (other income is smooth). The
+//          pacing bars show: the fill, a white "should be today" marker, an
+//          "after rent" marker (spent so far + rent still due; after rent is paid
+//          it stays at the running total on the rent date) and an "expected
+//          total" marker that appears only when the bar has to stretch past the
+//          expected total. Spending over expected turns the whole bar red;
+//          income uses reversed colors (green at/above pace, orange behind,
+//          blue past expected, red if short at the end of the window).
 //
 // v1.8.1 - Income is now the real inflow: Savings-category entries no longer affect
 //          the Analysis balance (only Swipes and Spend lower it, Income raises it).
@@ -2153,30 +2172,74 @@ function resetAnalysisDates(){
   document.getElementById('anaEnd').value=ymd(ana.end);
 }
 
+// Income sources that are paid every Friday (matched by name, case-insensitive);
+// everything else (Escape Room, Stipend, Misc ...) is spread evenly.
+const FRIDAY_INCOME=['cct','librarian','ymca','stage manager'];
+function countDow(start,end,dow){
+  let n=0;
+  for(let d=new Date(start);d.getTime()<end.getTime();d=addDays(d,1)) if(d.getDay()===dow) n++;
+  return n;
+}
+// last day of each month that falls inside [start,end)
+function monthEndsIn(start,end){
+  const out=[];
+  for(let m=start.getMonth();out.length<60;m++){
+    const d=new Date(start.getFullYear(),m+1,0);
+    if(d.getTime()>=end.getTime()) break;
+    if(d.getTime()>=start.getTime()) out.push(d);
+  }
+  return out;
+}
+
 // Pure math: everything the screen shows, from plain inputs (easy to test).
-// in: {start,end,today, allow:{g:[{name,amount}]}, takeHome,
-//      entries:[{date,group,pocket,cost}], hist:[{monday,byCat:{g:{name:v}}}],
-//      base:{d,total}|null}
+// in: {start,end,today, allow:{g:[{name,amount}]}, takeHome, income:[{name,amount}],
+//      lumps:{label,parts:[{cat,amount}]}|null  (month-end bills, e.g. rent + electric),
+//      entries:[{date,group,pocket,cost}], hist:[{monday,byCat}], base:{d,total}|null}
 function analysisCompute(inp){
   const days=Math.max(1,daysBetween(inp.start,inp.end));
   const today=new Date(inp.today); today.setHours(0,0,0,0);
-  const elapsed=Math.max(0,Math.min(days,daysBetween(inp.start,addDays(today,1))));
+  const todayEnd=addDays(today,1);
+  const elapsed=Math.max(0,Math.min(days,daysBetween(inp.start,todayEnd)));
   const rest=days-elapsed;
   const groups={};
-  let savOut=0;
   GROUPS.forEach(g=>{
-    const rows=(inp.allow[g]||[]).map(p=>({name:p.name,ant:num(p.amount)*days/7,act:0}));
-    groups[g]={rows,other:0,ant:0,act:0,idx:{}};
+    const rows=(inp.allow[g]||[]).map(p=>({name:p.name,ant:num(p.amount)*days/7,lump:0,act:0}));
+    groups[g]={rows,other:0,ant:0,act:0,should:0,lumpPer:0,lumpAnt:0,lumpDue:0,lumpUp:0,idx:{}};
     rows.forEach(r=>{ groups[g].idx[r.name.toLowerCase()]=r; });
   });
+  // month-end lump bills belong to Spend categories (matched by category name)
+  const ends=inp.lumps?monthEndsIn(inp.start,inp.end):[];
+  const due=ends.filter(d=>d.getTime()<todayEnd.getTime());
+  const upcoming=ends.filter(d=>d.getTime()>=todayEnd.getTime());
+  let rentPer=0;
+  if(inp.lumps) inp.lumps.parts.forEach(p=>{
+    const key=String(p.cat||'').toLowerCase();
+    let r=groups.Spend.idx[key];
+    if(!r){ r={name:p.cat||inp.lumps.label,ant:0,lump:0,act:0}; groups.Spend.rows.push(r); groups.Spend.idx[r.name.toLowerCase()]=r; }
+    r.lump+=num(p.amount)*ends.length; r.ant+=num(p.amount)*ends.length;
+    rentPer+=num(p.amount);
+  });
+  groups.Spend.lumpPer=ends.length?rentPer:0;
+
   const add=(g,name,v)=>{
     const o=groups[g], r=o.idx[String(name||'').toLowerCase()];
     if(r) r.act+=v; else o.other+=v;
   };
-  const inc={rows:(inp.income||[]).map(p=>({name:p.name,ant:num(p.amount)*days/7,act:0})),other:0,ant:0,act:0,idx:{},count:0};
+  const isFri=nm=>FRIDAY_INCOME.indexOf(String(nm).trim().toLowerCase())>=0;
+  const fWin=countDow(inp.start,inp.end,5);
+  const fLimit=new Date(Math.min(inp.end.getTime(),Math.max(inp.start.getTime(),todayEnd.getTime())));
+  const fTo=countDow(inp.start,fLimit,5);
+  const inc={rows:(inp.income||[]).map(p=>{
+      const a=num(p.amount), f=isFri(p.name);
+      return {name:p.name,ant:f?a*fWin:a*days/7,should:f?a*fTo:a*elapsed/7,act:0};
+    }),other:0,ant:0,should:0,act:0,idx:{},count:0};
+  if(!inc.rows.length&&num(inp.takeHome)>0) inc.rows.push({name:'Take-home',ant:num(inp.takeHome)*days/7,should:num(inp.takeHome)*elapsed/7,act:0});
   inc.rows.forEach(r=>{ inc.idx[r.name.toLowerCase()]=r; });
+
+  let savOut=0;
+  const inRange=(e,limit)=>e.date&&e.date.getTime()>=inp.start.getTime()&&e.date.getTime()<limit.getTime();
   (inp.entries||[]).forEach(e=>{
-    if(!e.date||e.date.getTime()<inp.start.getTime()||e.date.getTime()>=inp.end.getTime()) return;
+    if(!inRange(e,inp.end)) return;
     if(e.group==='Income'){
       const r=inc.idx[String(e.pocket||'').toLowerCase()];
       if(r) r.act+=e.cost; else inc.other+=e.cost;
@@ -2186,10 +2249,13 @@ function analysisCompute(inp){
     add(e.group,e.pocket,e.cost);
     if(e.group==='Savings'&&e.cost>0) savOut+=e.cost;
   });
-  (inp.hist||[]).forEach(h=>{
+  const histWeight=(h,limit)=>{
     const ws=Math.max(h.monday.getTime(),inp.start.getTime());
-    const we=Math.min(addDays(h.monday,7).getTime(),inp.end.getTime());
-    const w=Math.max(0,Math.round((we-ws)/86400000))/7;
+    const we=Math.min(addDays(h.monday,7).getTime(),limit.getTime());
+    return Math.max(0,Math.round((we-ws)/86400000))/7;
+  };
+  (inp.hist||[]).forEach(h=>{
+    const w=histWeight(h,inp.end);
     if(w<=0) return;
     GROUPS.forEach(g=>{
       const m=(h.byCat&&h.byCat[g])||{};
@@ -2200,23 +2266,44 @@ function analysisCompute(inp){
     const o=groups[g];
     o.ant=o.rows.reduce((s,r)=>s+r.ant,0);
     o.act=o.rows.reduce((s,r)=>s+r.act,0)+o.other;
+    o.lumpAnt=o.lumpPer*ends.length; o.lumpDue=o.lumpPer*due.length; o.lumpUp=o.lumpPer*upcoming.length;
+    o.should=(o.ant-o.lumpAnt)*elapsed/days+o.lumpDue;
   });
   inc.ant=inc.rows.reduce((s,r)=>s+r.ant,0);
+  inc.should=inc.rows.reduce((s,r)=>s+r.should,0);
   inc.act=inc.rows.reduce((s,r)=>s+r.act,0)+inc.other;
-  const total={ant:0,act:0};
-  GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; });
-  const incomeAnt=num(inp.takeHome)*days/7;
+  const total={ant:0,act:0,should:0};
+  GROUPS.forEach(g=>{ total.ant+=groups[g].ant; total.act+=groups[g].act; total.should+=groups[g].should; });
+
+  // "after rent" marker: spent so far + rent still to come; once rent is paid it stays
+  // at the running total as of the rent date
+  const spentUpTo=(limit,gs)=>{
+    let t=0;
+    (inp.entries||[]).forEach(e=>{ if(e.group!=='Income'&&gs.indexOf(e.group)>=0&&inRange(e,limit)) t+=e.cost; });
+    (inp.hist||[]).forEach(h=>{ const w=histWeight(h,limit); if(w<=0) return; gs.forEach(g=>{ const m=(h.byCat&&h.byCat[g])||{}; Object.keys(m).forEach(nm=>{ t+=m[nm]*w; }); }); });
+    return t;
+  };
+  const afterRent=gs=>{
+    if(!ends.length||gs.indexOf('Spend')<0) return null;
+    const act=gs.reduce((s,g)=>s+groups[g].act,0);
+    if(upcoming.length) return {v:act+groups.Spend.lumpUp,paid:false};
+    return {v:spentUpTo(addDays(ends[ends.length-1],1),gs),paid:true};
+  };
+
+  const incomeAnt=inc.ant;
   const spendAnt=groups.Swipes.ant+groups.Spend.ant;
+  const spendShould=groups.Swipes.should+groups.Spend.should;
   const spendAct=groups.Swipes.act+groups.Spend.act;   // Savings-category entries never touch the account balance
   const res={days,elapsed,rest,groups,total,income:inc,incomeAnt,spendAnt,spendAct,savOut,
-    restIncome:num(inp.takeHome)*rest/7,
-    restSpend:spendAnt*rest/days,
-    restSave:groups.Savings.ant*rest/days,
+    afterAll:afterRent(GROUPS),afterSpend:afterRent(['Spend']),rentDates:ends,rentPer:rentPer,
+    restIncome:Math.max(0,inc.ant-inc.should),
+    restSpend:Math.max(0,spendAnt-spendShould),
+    restSave:Math.max(0,groups.Savings.ant-groups.Savings.should),
     start0:null,should:null,projected:null,baseApprox:false};
   res.restLeft=res.restIncome-res.restSpend-res.restSave;
   if(inp.base){
     const gap=Math.max(0,daysBetween(inp.base.d,inp.start));
-    const perDay=(num(inp.takeHome)/7)-(spendAnt/days);
+    const perDay=(incomeAnt/days)-(spendAnt/days);
     res.start0=inp.base.total+perDay*gap;
     res.baseApprox=gap>0;
     res.should=res.start0+incomeAnt-spendAnt;
@@ -2224,7 +2311,7 @@ function analysisCompute(inp){
     // income has been logged in the window, fall back to the plan
     res.incomeLogged=inc.count>0;
     res.projIncome=res.incomeLogged?(inc.act+res.restIncome):incomeAnt;
-    res.projected=res.start0+res.projIncome-spendAct-(spendAnt*rest/days);
+    res.projected=res.start0+res.projIncome-spendAct-res.restSpend;
   }
   return res;
 }
@@ -2287,6 +2374,8 @@ async function loadAnalysis(){
     const baseTab=tabs.filter(x=>x.d.getTime()<=s.getTime()).sort((a,b)=>b.d-a.d)[0]||null;
     const ranges=use.map(x=>"'"+x.t+"'!A3:E500").concat([MA+'I55']);
     if(baseTab) ranges.push("'"+baseTab.t+"'!O3:O4");
+    const lumpIdx=ranges.length;
+    ranges.push(MA+'K3:O51');
     const qs=ranges.map(r=>'ranges='+encodeURIComponent(r)).join('&');
     const br=await sheetsReq('GET','/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&'+qs);
     const vr=br.valueRanges||[];
@@ -2316,7 +2405,21 @@ async function loadAnalysis(){
     }
     const allow={};
     GROUPS.forEach(g=>{ allow[g]=catsOf(g).map(p=>({name:p.name,amount:p.amount})); });
-    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
+    // Rent and Electricity (Money Allocation K:O) are month-end lumps, not smooth spending
+    const parts=[];
+    ((((vr[lumpIdx]||{}).values)||[])).forEach(r=>{
+      const nm=String(r&&r[0]!=null?r[0]:'').trim().toLowerCase();
+      if(nm!=='rent'&&nm!=='electricity') return;
+      const tot=num(r[1]);
+      const wk=(typeof r[4]==='number')?r[4]:(num(r[3])>0?tot/num(r[3]):0);
+      parts.push({cat:String(r[2]==null?'':r[2]).trim(),amount:tot,weekly:wk});
+    });
+    const lumps=parts.length?{label:'Rent',parts}:null;
+    if(lumps) lumps.parts.forEach(pt=>{
+      const r=allow.Spend.find(x=>x.name.toLowerCase()===pt.cat.toLowerCase());
+      if(r) r.amount=Math.max(0,num(r.amount)-pt.weekly);
+    });
+    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,lumps,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
     ana.res.histWeeks=hist.length;
     ana.res.missingWeeks=missing.length-hist.length;
     renderAnalysis();
@@ -2326,22 +2429,53 @@ async function loadAnalysis(){
   }finally{ ana.busy=false; setSpinner(false); }
 }
 
-function anaPaceCard(label,ant,act,res,isIncome){
-  const toDate=ant*res.elapsed/res.days;
-  const pctFill=ant>0?Math.max(0,Math.min(100,act/ant*100)):(act>0?100:0);
-  const mark=Math.min(100,res.elapsed/res.days*100);
-  let cls=act<=toDate+0.005?'':(act<=ant+0.005?' warn':' bad');
-  const diff=act-toDate;
-  let pace=res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace');
-  if(isIncome){
-    cls=act>=toDate-0.005?'':(act>=toDate*0.9?' warn':' bad');
-    pace=res.elapsed===0?'not started yet':(diff>=0?money(diff)+' ahead of pace':money(-diff)+' behind pace');
+// Pacing bar. Scale = the expected total, stretched to the biggest of: actual,
+// the after-rent marker. Markers: should-be-today (always), after-rent (spending
+// with a month-end bill), expected total (only when the bar had to stretch).
+function anaBar(o){
+  const res=o.res, income=!!o.income;
+  const after=o.after?o.after.v:null;
+  const scale=Math.max(o.ant,o.act,after===null?0:after,1);
+  const p=v=>Math.max(0,Math.min(100,v/scale*100));
+  const over=o.act>o.ant+0.005;
+  const finished=res.elapsed>=res.days;
+  let col;
+  if(income){
+    col=over?'#38bdf8':(o.act>=o.should-0.005?'var(--accent-text)':'var(--warn-text)');
+    if(!over&&finished&&o.act<o.ant-0.005) col='var(--danger-text)';
+  }else{
+    col=over?'var(--danger-text)':(o.act>o.should+0.005?'var(--warn-text)':'var(--accent-text)');
   }
-  return '<div class="balance-card"><div class="label">'+esc(label)+'<\/div>'+
-    '<div class="amount'+((!isIncome&&act>ant+0.005)?' over':'')+'">'+money(act)+'<\/div>'+
-    '<div class="meta">Anticipated '+money(ant)+' · '+pace+'<\/div>'+
-    '<div class="pace-track"><div class="pace-fill'+cls+'" style="width:'+pctFill.toFixed(1)+'%"><\/div><div class="pace-mark" style="left:'+mark.toFixed(1)+'%"><\/div><\/div>'+
-    '<div class="meta" style="font-size:11px;">Marker = where '+(isIncome?'income':'spending')+' should be today ('+money(toDate)+')<\/div><\/div>';
+  const lab=(x,txt,c)=>{
+    let tr='translateX(-50%)'; if(x>86) tr='translateX(-92%)'; if(x<8) tr='translateX(-8%)';
+    return '<span style="color:'+c+';transform:'+tr+'">'+txt+'<\/span>';
+  };
+  let m='<div class="pmk up" style="left:'+p(o.should).toFixed(2)+'%;background:var(--ink)">'+lab(p(o.should),'should be today<br>'+money(o.should),'var(--ink)')+'<\/div>';
+  if(after!==null){
+    const ac=after>o.ant+0.005?'var(--danger-text)':'var(--warn-text)';
+    m+='<div class="pmk dn" style="left:'+p(after).toFixed(2)+'%;background:'+ac+'">'+lab(p(after),(o.after.paid?'after rent (paid)':'after rent')+'<br>'+money(after),ac)+'<\/div>';
+  }
+  const stretched=scale>o.ant+0.5;
+  if(stretched){
+    const near=Math.abs(p(o.ant)-p(o.should))<16;
+    const same=Math.abs(p(o.ant)-p(o.should))<1.5;
+    m+='<div class="pmk '+((income||near)?'dn':'up')+'" style="left:'+p(o.ant).toFixed(2)+'%;background:#a78bfa">'+(same?'':lab(p(o.ant),'expected total<br>'+money(o.ant),'#a78bfa'))+'<\/div>';
+  }
+  const diff=o.act-o.should;
+  let meta;
+  if(income) meta='Expected '+money(o.ant)+' · '+(over?money(o.act-o.ant)+' past expected':(res.elapsed===0?'not started yet':(diff>=0?money(diff)+' ahead of pace':money(-diff)+' behind pace')));
+  else meta='Anticipated '+money(o.ant)+' · '+(res.elapsed===0?'not started yet':(diff<=0?money(-diff)+' under pace':money(diff)+' over pace'));
+  const bad=income?(finished&&o.act<o.ant-0.005):over;
+  return '<div class="balance-card"><div class="label">'+esc(o.label)+'<\/div>'+
+    '<div class="amount'+(bad?' over':'')+'">'+money(o.act)+'<\/div>'+
+    '<div class="meta">'+meta+'<\/div>'+
+    '<div class="ptrack"><div class="pfill" style="width:'+p(o.act).toFixed(2)+'%;background:'+col+'"><\/div>'+m+'<\/div>'+
+    (o.foot?'<div class="meta" style="font-size:11px;">'+o.foot+'<\/div>':'')+'<\/div>';
+}
+function anaRentNote(res){
+  if(!res.rentDates.length) return '';
+  const nice=d=>MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate();
+  return 'Rent '+money(res.rentPer)+' is due '+res.rentDates.map(nice).join(', ')+'.';
 }
 function anaRowInc(name,ant,act){
   const d=act-ant;
@@ -2365,14 +2499,14 @@ function renderAnalysis(){
   if(res.histWeeks) out.push('<div class="status-banner info">'+SVG_INFO+'<span>'+res.histWeeks+' week'+(res.histWeeks>1?'s':'')+' of this window come from History (weekly totals, split by day when a week is only partly inside the window).<\/span><\/div>');
   if(res.missingWeeks>0) out.push('<div class="status-banner warn">'+SVG_WARN+'<span>'+res.missingWeeks+' week'+(res.missingWeeks>1?'s':'')+' in this window have no tab or History column, so they count as $0.<\/span><\/div>');
   if(view==='All'){
-    out.push(anaPaceCard('Spent, all types',res.total.ant,res.total.act,res));
+    out.push(anaBar({label:'Spent, all types',ant:res.total.ant,act:res.total.act,should:res.total.should,after:res.afterAll,res,foot:anaRentNote(res)}));
     out.push('<div class="card" style="padding:16px 16px 4px;"><div class="section-title">Anticipated vs actual<\/div>'+
       GROUPS.map(g=>anaRow(g,res.groups[g].ant,res.groups[g].act)).join('')+
       anaRow('Combined total',res.total.ant,res.total.act)+'<\/div>');
-    out.push(anaPaceCard('Income received',res.income.ant,res.income.act,res,true));
+    out.push(anaBar({label:'Income received',ant:res.income.ant,act:res.income.act,should:res.income.should,income:true,res}));
   }else if(view==='Income'){
     const o=res.income;
-    out.push(anaPaceCard('Income received',o.ant,o.act,res,true));
+    out.push(anaBar({label:'Income received',ant:o.ant,act:o.act,should:o.should,income:true,res}));
     let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By income source<\/div>';
     o.rows.forEach(r=>{ h+=anaRowInc(r.name,r.ant,r.act); });
     if(Math.abs(o.other)>=0.005) h+=anaRowInc('Other / unlisted',0,o.other);
@@ -2380,7 +2514,7 @@ function renderAnalysis(){
     out.push(h+'<\/div>');
   }else{
     const o=res.groups[view];
-    out.push(anaPaceCard('Spent · '+view,o.ant,o.act,res));
+    out.push(anaBar({label:'Spent · '+view,ant:o.ant,act:o.act,should:o.should,after:view==='Spend'?res.afterSpend:null,res,foot:view==='Spend'?anaRentNote(res):''}));
     let h='<div class="card" style="padding:16px 16px 4px;"><div class="section-title">By '+(view==='Swipes'?'source':'category')+'<\/div>';
     o.rows.forEach(r=>{ h+=anaRow(r.name,r.ant,r.act); });
     if(Math.abs(o.other)>=0.005) h+=anaRow('Uncategorized / other',0,o.other);
