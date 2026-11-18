@@ -376,15 +376,17 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
         <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:100%;">
           <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
             <colgroup>
-              <col style="width:17%;"/>
+              <col style="width:15%;"/>
               <col/>
-              <col style="width:20%;"/>
-              <col style="width:18%;"/>
-              <col style="width:8%;"/>
+              <col style="width:17%;"/>
+              <col style="width:19%;"/>
+              <col style="width:15%;"/>
+              <col style="width:7%;"/>
             </colgroup>
             <thead><tr>
               <th style="padding:8px 6px;font-size:10px;">Date</th>
               <th style="padding:8px 6px;font-size:10px;">Expense</th>
+              <th style="padding:8px 6px;font-size:10px;">Type</th>
               <th style="padding:8px 6px;font-size:10px;">Source</th>
               <th style="padding:8px 6px;font-size:10px;text-align:right;">Cost</th>
               <th></th>
@@ -510,7 +512,7 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.0</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.7.1</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -547,6 +549,9 @@ td input:focus,td select:focus{outline:1px solid var(--accent-text);background:v
 // -- CHANGELOG -------------------------------------------------------------------
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
+//
+// v1.7.1 - Ledger has a Type dropdown (Swipes / Spend / Savings) next to Source;
+//          changing the type clears a Source that belongs to another group.
 //
 // v1.7.0 - Log Spend and Savings entries with a required category (Add tab).
 //          Category lists always come from Money Allocation: Swipes B6:B20,
@@ -1626,10 +1631,12 @@ function renderLedger(){
     tr.innerHTML=
       '<td style="padding:0 8px;"><input value="'+esc(formatDate(e.date))+'" data-id="'+e.id+'" name="entry-date" data-f="date" placeholder="Date" style="'+iStyle+'width:100%;"/><\/td>'+
       '<td style="padding:0 4px;"><input value="'+esc(e.item)+'" data-id="'+e.id+'" name="entry-item" data-f="item" placeholder="Expense\u2026" style="'+iStyle+'"/><\/td>'+
+      '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-account" data-f="account" style="'+iStyle+'font-size:11px;"><option value="Swipes">Swipes<\/option><option value="Spend">Spend<\/option><option value="Savings">Savings<\/option><\/select><\/td>'+
       '<td style="padding:0 4px;"><select data-id="'+e.id+'" name="entry-pocket" data-f="pocket" style="'+iStyle+'font-size:11px;">'+pocketOpts+'<\/select><\/td>'+
       '<td style="padding:0 4px;"><input type="number" step="0.01" value="'+(e.cost!==''&&e.cost!==0?num(e.cost).toFixed(2):'')+'" data-id="'+e.id+'" name="entry-cost" data-f="cost" placeholder="0.00" style="'+numStyle+'width:60px;"/><\/td>'+
       '<td style="padding:0 4px 0 0;text-align:center;">'+(isFilled?'<button class="del-btn" data-del="'+e.id+'">\u00d7<\/button>':'')+'<\/td>';
     body.appendChild(tr);
+    tr.querySelector('[data-f="account"]').value=entryGroup(e);
     const psel=tr.querySelector('[data-f="pocket"]');
     if(e.pocket&&!groupOfName(e.pocket)){ const xo=document.createElement('option'); xo.value=e.pocket; xo.textContent=e.pocket; psel.appendChild(xo); }
     psel.value=e.pocket||'';
@@ -1655,6 +1662,8 @@ function renderLedger(){
       if(!entry) return;
       entry[f]=f==='cost'?num(ev.target.value):ev.target.value;
       if(f==='pocket'){ const pg=groupOfName(entry.pocket); if(pg) entry.account=pg; }
+      if(f==='account'&&entry.pocket&&groupOfName(entry.pocket)!==entry.account) entry.pocket='';
+      if(f==='account'||f==='pocket') renderLedger();
       saveLocal(); renderSummary(); renderPockets();
       if(accessToken&&sheetLoaded){
         try{ await rewriteEntries(currentTabName); showToast('Sheet updated','success'); }
