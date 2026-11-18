@@ -532,7 +532,7 @@ td select{color-scheme:light dark;}
 
   </div>
 
-  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.2</div>
+  <div id="versionTag" style="position:fixed;bottom:calc(var(--tab-h) + 2px);right:8px;font-size:9px;color:var(--ink3);opacity:0.4;z-index:99;pointer-events:none;font-family:var(--mono);">v1.9.3</div>
   <nav class="bottom-nav" id="bottomNav" style="display:none;">
     <button class="nav-btn active" data-panel="add">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
@@ -570,6 +570,11 @@ td select{color-scheme:light dark;}
 // Version tracking starts here (v1.5.0). Bump the version tag (search
 // "versionTag" in the HTML above) and add an entry each time changes ship.
 //
+// v1.9.3 - Analysis starts from the real balance: when the window includes today, the
+//          current week's tab (R3 + R4, New Values) is the anchor and the starting
+//          balance is worked backward from it (balance now minus logged income plus
+//          logged Swipes/Spend in the window). The old estimate from an older tab is
+//          only the fallback for past or future windows.
 // v1.9.2 - Pacing bars: new teal "projected end" marker (spent so far + what the plan
 //          still expects, including rent still due), "Still expected this window"
 //          line under every bar and on every category row, "expected total" is now
@@ -2356,7 +2361,16 @@ function analysisCompute(inp){
     restSave:Math.max(0,groups.Savings.ant-groups.Savings.should),
     start0:null,should:null,projected:null,baseApprox:false};
   res.restLeft=res.restIncome-res.restSpend-res.restSave;
-  if(inp.base){
+  const nowD=new Date(inp.today); nowD.setHours(0,0,0,0);
+  const useCur=inp.cur&&typeof inp.cur.total==='number'&&inp.start.getTime()<=nowD.getTime()&&nowD.getTime()<inp.end.getTime();
+  if(useCur){
+    res.curTotal=inp.cur.total; res.curTab=inp.cur.tab; res.baseApprox=false;
+    res.start0=inp.cur.total-(inc.act-spendAct);
+    res.should=res.start0+incomeAnt-spendAnt;
+    res.incomeLogged=inc.count>0;
+    res.projIncome=res.incomeLogged?(inc.act+res.restIncome):incomeAnt;
+    res.projected=res.start0+res.projIncome-spendAct-res.restSpend;
+  }else if(inp.base){
     const gap=Math.max(0,daysBetween(inp.base.d,inp.start));
     const perDay=(incomeAnt/days)-(spendAnt/days);
     res.start0=inp.base.total+perDay*gap;
@@ -2431,6 +2445,9 @@ async function loadAnalysis(){
     if(baseTab) ranges.push("'"+baseTab.t+"'!O3:O4");
     const lumpIdx=ranges.length;
     ranges.push(MA+'K3:O51');
+    const curTabObj=tabs.find(x=>x.d.getTime()===getMondayOf(new Date()).getTime())||null;
+    const curIdx=ranges.length;
+    if(curTabObj) ranges.push("'"+curTabObj.t+"'!R3:R4");
     const qs=ranges.map(r=>'ranges='+encodeURIComponent(r)).join('&');
     const br=await sheetsReq('GET','/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&'+qs);
     const vr=br.valueRanges||[];
@@ -2474,7 +2491,13 @@ async function loadAnalysis(){
       const r=allow.Spend.find(x=>x.name.toLowerCase()===pt.cat.toLowerCase());
       if(r) r.amount=Math.max(0,num(r.amount)-pt.weekly);
     });
-    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,lumps,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
+    let cur=null;
+    if(curTabObj){
+      const cv=((vr[curIdx]||{}).values)||[];
+      const c3=cv[0]?cv[0][0]:undefined, c4=cv[1]?cv[1][0]:undefined;
+      if(typeof c3==='number'&&typeof c4==='number') cur={total:c3+c4,tab:curTabObj.t};
+    }
+    ana.res=analysisCompute({start:s,end:e,today:new Date(),allow,takeHome,entries,hist,base,cur,lumps,income:catsOf('Income').map(p=>({name:p.name,amount:p.amount}))});
     ana.res.histWeeks=hist.length;
     ana.res.missingWeeks=missing.length-hist.length;
     renderAnalysis();
@@ -2596,7 +2619,8 @@ function renderAnalysis(){
   // where we should be + rest of window
   if(res.start0!==null){
     let c='<div class="card"><div class="section-title">Where we should be (cash + savings)<\/div>';
-    c+=kv('Starting balance'+(res.baseApprox?' (estimated)':''),money(res.start0));
+    if(res.curTotal!==undefined) c+=kv('Balance now (week of '+res.curTab+')',money(res.curTotal));
+    c+=kv('Starting balance'+(res.baseApprox?' (estimated)':(res.curTotal!==undefined?' (from balance now)':'')),money(res.start0));
     c+=kv('Expected income (plan)','+'+money(res.incomeAnt));
     c+=kv('Planned spending (Swipes + Spend)','−'+money(res.spendAnt));
     c+=kv('Should be at end',money(res.should),true);
